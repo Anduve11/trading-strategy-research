@@ -45,3 +45,17 @@ def test_sentiment_does_not_include_future_news():
     assert agg.iloc[0].news_sentiment==-0.4
     with pytest.raises(ValueError,match='Sentiment unavailable'):
         aggregate_predecision_sentiment(news.drop(columns='sentiment'),ds)
+
+
+def test_missing_etf_minute_removes_entire_trade_day():
+    from scripts.ml_research import full_aligned_days
+    df=generate_synthetic(2)
+    dates=df.timestamp.dt.tz_convert('America/New_York').dt.date
+    all_days=set(dates)
+    eligible,n=full_aligned_days(df)
+    assert eligible==all_days and n==2
+    # Simulate missing one SQQQ minute, not a missing QQQ indicator.
+    damaged=df.drop(df.index[(df.symbol=='SQQQ') & (dates==min(all_days))][:1])
+    usable,n=full_aligned_days(damaged)
+    assert len(usable)==1 and n==2
+    assert min(all_days) not in usable

@@ -46,19 +46,43 @@ def outcomes_by_day(bars, features):
     return result
 
 
+def full_aligned_days(bars):
+    """Only complete 390-minute regular sessions with all three ETF prices.
+
+    Never synthesize missing tradable ETF prices or infer stop fills from QQQ.
+    Half-days and days with missing 1-minute bars are intentionally excluded.
+    """
+    et=bars.timestamp.dt.tz_convert('America/New_York')
+    counts=(bars.assign(day=et.dt.date).groupby(['day','symbol']).size()
+               .unstack(fill_value=0))
+    for sym in ('QQQ','TQQQ','SQQQ'):
+        if sym not in counts:counts[sym]=0
+    eligible=counts.index[(counts[['QQQ','TQQQ','SQQQ']]==390).all(axis=1)]
+    return set(eligible), int(len(counts))
+
+
 def main():
     url=required_env('SUPABASE_URL'); key=required_env('SUPABASE_SECRET_KEY')
     bucket=os.environ.get('SUPABASE_BUCKET','market-edge-history')
     archive=SupabaseArchive(url,key,bucket)
-    blocks=[]; prior=[]; good_months=0; rejected=0
+    blocks=[]; prior=[]; good_months=0; rejected=0; excluded_sessions=0; total_sessions=0; low_coverage_months=[]
     for begin,_ in month_windows(START,END):
         bars=archive.load(begin)
         if bars is None:raise RuntimeError(f'Archive missing historical month {begin:%Y-%m}; no research fallback.')
         coverage=audit_bar_coverage(bars)
-        if coverage['aligned_minutes_pct']<99.0:raise RuntimeError(f'Unsynchronized ETF prices for {begin:%Y-%m}')
+        eligible, day_count=full_aligned_days(bars)
+        total_sessions+=day_count
+        excluded_sessions+=day_count-len(eligible)
+        if coverage['aligned_minutes_pct']<99.:
+            low_coverage_months.append(f'{begin:%Y-%m} ({coverage["aligned_minutes_pct"]:.1f}% aligned)')
+        # Build lagged features on the true historical session sequence, even
+        # when a particular day is incomplete and cannot be traded safely.
         f,prior=extract_month(bars,prior)
         if not f.empty:
-            combined=outcomes_by_day(bars,f)
+            f=f.loc[f.date.isin(eligible)].copy()
+        if not f.empty:
+            trading_bars=bars.loc[bars.timestamp.dt.tz_convert('America/New_York').dt.date.isin(eligible)].copy()
+            combined=outcomes_by_day(trading_bars,f)
             missing=int(combined[['tqqq_net_pct','sqqq_net_pct']].isna().any(axis=1).sum())
             rejected+=missing
             combined=combined.dropna(subset=['tqqq_net_pct','sqqq_net_pct'])
@@ -74,6 +98,9 @@ def main():
           'feature_decision_time':'09:50 ET completed minute; TQQQ/SQQQ simulated entry 09:51 ET',
           'label':'QQQ return sign from 09:51 open to 10:51 close',
           'feature_rows':int(len(data)),'archive_months':good_months,'rejected_missing_execution':rejected,
+          'sessions_seen':total_sessions,'sessions_excluded_incomplete':excluded_sessions,
+          'sessions_excluded_share':excluded_sessions/max(total_sessions,1),
+          'low_alignment_months':low_coverage_months[:40],
           'no_sentiment_in_this_run':True,'macro_features_in_this_run':False,
           'previously_inspected_period':'2025-2026 diagnostic ONLY',
           'all_hypothetical':True,'no_live_orders':True,
