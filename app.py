@@ -3,7 +3,30 @@ from dataclasses import replace
 import io
 import pandas as pd
 import streamlit as st
-from trade_lab.data import generate_synthetic, validate_bars, audit_bar_coverage
+from trade_lab.data import generate_synthetic, validate_bars
+
+# Streamlit Cloud may temporarily load a newer app.py with an older cached
+# trade_lab.data during a multi-file deployment. This compatibility fallback
+# allows the data-quality display to load safely with either module version.
+try:
+    from trade_lab.data import audit_bar_coverage
+except ImportError:
+    def audit_bar_coverage(bars: pd.DataFrame) -> dict:
+        if bars.empty:
+            raise ValueError('Cannot audit an empty bar dataset.')
+        sessions = int(bars['timestamp'].dt.tz_convert('America/New_York').dt.date.nunique())
+        expected = sessions * 390 * 3
+        counts = bars.groupby('timestamp')['symbol'].nunique()
+        aligned = int((counts == 3).sum())
+        return {
+            'sessions': sessions,
+            'bars': int(len(bars)),
+            'expected_full_session_bars': expected,
+            'expected_coverage_pct': 100 * len(bars) / expected if expected else 0.,
+            'observed_minutes': int(len(counts)),
+            'aligned_minutes': aligned,
+            'aligned_minutes_pct': 100 * aligned / len(counts) if len(counts) else 0.,
+        }
 from trade_lab.alpaca import fetch_bars
 from trade_lab.signals import STRATEGIES
 from trade_lab.engine import Config, simulate, summarize, split_by_session
