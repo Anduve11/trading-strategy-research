@@ -1,0 +1,90 @@
+name: News and constituent research (paper-only)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'trade_lab/constituents.py'
+      - 'trade_lab/news_lab.py'
+      - 'scripts/news_research.py'
+      - '.github/workflows/news_constituents.yml'
+
+permissions:
+  contents: read
+concurrency:
+  group: market-edge-news-study
+  cancel-in-progress: false
+
+jobs:
+  smoke-news:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+      ALPACA_KEY_ID: ${{ secrets.ALPACA_KEY_ID }}
+      ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: requirements-ml.txt
+      - run: python -m pip install -r requirements-ml.txt pytest
+      - run: python -m pytest -q
+      - name: Verify historical Alpaca News API access before the archive fanout
+        run: python scripts/news_research.py --mode smoke
+  archive-news:
+    needs: smoke-news
+    runs-on: ubuntu-latest
+    timeout-minutes: 320
+    strategy:
+      fail-fast: true
+      matrix:
+        year_start: [2019, 2021, 2023, 2025]
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+      ALPACA_KEY_ID: ${{ secrets.ALPACA_KEY_ID }}
+      ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
+      SUPABASE_BUCKET: market-edge-history
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: requirements-ml.txt
+      - run: python -m pip install -r requirements-ml.txt pytest
+      - run: python -m pytest -q
+      - name: Save monthly headline-derived research data
+        run: python scripts/news_research.py --mode archive --year-start ${{ matrix.year_start }} --year-end $(( ${{ matrix.year_start }} + 1 ))
+
+  evaluate:
+    needs: archive-news
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+      SUPABASE_BUCKET: market-edge-history
+      SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: requirements-ml.txt
+      - run: python -m pip install -r requirements-ml.txt pytest
+      - run: python -m pytest -q
+      - name: Evaluate price vs macro vs fixed-basket news and optional SEC fundamentals
+        run: python scripts/news_research.py --mode evaluate
