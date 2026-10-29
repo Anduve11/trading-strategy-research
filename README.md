@@ -1,11 +1,13 @@
-# Market Edge — ETF Intraday Research Lab (v0.1)
+# Market Edge — ETF Intraday Research Lab (v0.2)
+
+**[Open the live Streamlit dashboard](https://trading-strategy-research-m28fia7syvi6jd5ganw6ch.streamlit.app/)**
 
 A working, **research-only** Streamlit dashboard for testing simple intraday strategies on **QQQ signals** and **TQQQ/SQQQ execution**. No orders can be sent to a broker.
 
 ## Browser-only deployment (free)
 
-1. Open the private GitHub repository **[Anduve11/trading-strategy-research](https://github.com/Anduve11/trading-strategy-research)**. The source code is stored in this repository.
-2. Visit **https://share.streamlit.io** and sign in with GitHub. Authorize Streamlit to access this private repository if prompted.
+1. Open the GitHub repository **[Anduve11/trading-strategy-research](https://github.com/Anduve11/trading-strategy-research)**. The source code is stored in this repository.
+2. Visit **https://share.streamlit.io** and sign in with GitHub. Authorize Streamlit to access the repository if prompted.
 3. Select **Create app**, choose repository `Anduve11/trading-strategy-research`, branch `main`, and entrypoint **`app.py`**. Deploy.
 4. Select **Synthetic demo** to check the UI works. **Synthetic results have no trading significance.**
 5. Select **Upload historical CSV** for real data, or **Alpaca historical ETF data**. The app now defaults to historical consolidated SIP data (more than 15 minutes old), which Alpaca Basic currently allows without a paid real-time plan. Select IEX only for comparison/debugging; its one-exchange coverage is not suitable for execution-quality research. API credentials are entered using masked in-session inputs and are *not saved to files*. Never commit credentials to GitHub.
