@@ -43,7 +43,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 320
     strategy:
-      fail-fast: true
+      fail-fast: false
       matrix:
         year_start: [2019, 2021, 2023, 2025]
     env:

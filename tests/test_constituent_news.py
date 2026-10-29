@@ -79,3 +79,15 @@ def test_pagination_and_dedupe():
     assert 'static-2026-basket' in derived_key(date(2024,6,1))
     with pytest.raises(RuntimeError,match='HTTP 401'):
         fetch_news_chunk('fake','fake',date(2024,6,1),date(2024,7,1),session=FakeNewsSession(fail=True),rate_delay=0)
+
+
+def test_out_of_interval_updated_story_is_excluded_not_retimestamped():
+    class OldNews:
+        def get(self,url,params,headers,timeout):
+            return FakeNewsResponse(200,{'news':[
+                {'id':111,'created_at':'2024-05-25T01:00:00Z','headline':'old news updated later','symbols':['AAPL']},
+                {'id':112,'created_at':'2024-06-01T11:00:00Z','headline':'earnings beat','symbols':['AAPL']},
+                {'id':113,'created_at':'2024-07-01T00:00:00Z','headline':'outside end','symbols':['AAPL']}],
+                'next_page_token':None})
+    data=fetch_news_chunk('fake','fake',date(2024,6,1),date(2024,7,1),session=OldNews(),rate_delay=0)
+    assert data.id.tolist()==['112']

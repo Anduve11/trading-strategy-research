@@ -72,8 +72,10 @@ def fetch_news_chunk(key:str,secret:str,begin:date,end:date,session=None,max_pag
     frame=pd.DataFrame(rows).drop_duplicates(subset='id')
     frame['created_at']=pd.to_datetime(frame.created_at,utc=True,errors='raise')
     lo=pd.Timestamp(begin,tz='UTC');hi=pd.Timestamp(end,tz='UTC')
-    if (frame.created_at.lt(lo)|frame.created_at.ge(hi)).any():
-        raise ValueError('News provider returned timestamps outside requested interval')
+    # Alpaca may filter/sort by article update timestamp, while our features
+    # deliberately use original created_at only. Older updated articles must
+    # NEVER be reinterpreted as newly available news. Drop them safely.
+    frame=frame.loc[(frame.created_at>=lo)&(frame.created_at<hi)].copy()
     return frame.sort_values('created_at').reset_index(drop=True)
 
 
