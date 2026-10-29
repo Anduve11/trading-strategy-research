@@ -11,6 +11,7 @@ import pandas as pd
 from .data import ET, audit_bar_coverage
 from .engine import Config, simulate, summarize
 from .signals import STRATEGIES, calculate_signals
+from .regimes import classify_sessions, summarize_regime_trades
 
 EXITS = ((1.0, 1.0), (1.5, 1.0), (2.0, 1.5), (3.0, 2.0))
 
@@ -84,6 +85,8 @@ def run_study(fetcher: Callable[[str, str], pd.DataFrame],
     trade_parts = {(c, phase): [] for c in candidates for phase in ('Development', 'Validation', 'Final holdout')}
     equity_parts = {(c, phase): [] for c in candidates for phase in ('Development', 'Validation', 'Final holdout')}
     quality = []
+    regime_trade_parts = []
+    trailing_qqq_closes = []
 
     for index, (begin, finish) in enumerate(windows, start=1):
         phase = partitions[begin.year]
@@ -97,6 +100,9 @@ def run_study(fetcher: Callable[[str, str], pd.DataFrame],
         quality.append(report)
         if report['aligned_minutes_pct'] < 99.0:
             raise ValueError(f'Missing synchronized ETF minute bars during {begin}–{finish} ({report["aligned_minutes_pct"]:.1f}% aligned). Correct the dataset before trusting backtests.')
+        # Regimes are fixed before trading: only previous sessions' completed
+        # daily QQQ closes enter this classification (including at chunk edges).
+        regimes, trailing_qqq_closes = classify_sessions(bars, trailing_qqq_closes)
         # Compute the four QQQ trading signals ONCE per chunk, rather than for each exit rule.
         precomputed = {s: calculate_signals(bars, s) for s in set(c.strategy for c in candidates)}
         precomputed_prices = {sym: x.set_index('timestamp').sort_index() for sym, x in bars.groupby('symbol')}
@@ -114,6 +120,11 @@ def run_study(fetcher: Callable[[str, str], pd.DataFrame],
                 equity_parts[key].append(equity)
             if not trades.empty:
                 trade_parts[key].append(trades)
+                annotated = trades[['date', 'ticker', 'pnl_dollars', 'net_return_pct']].merge(
+                    regimes, on='date', how='left', validate='many_to_one')
+                annotated['candidate'] = candidate.label()
+                annotated['period'] = phase
+                regime_trade_parts.append(annotated)
         if progress:
             progress(index, len(windows), f'Processed {begin} through {finish}')
 
@@ -135,6 +146,7 @@ def run_study(fetcher: Callable[[str, str], pd.DataFrame],
             })
     return {
         'results': pd.DataFrame(rows),
+        'regime_results': summarize_regime_trades(pd.concat(regime_trade_parts, ignore_index=True) if regime_trade_parts else pd.DataFrame()),
         'coverage': pd.DataFrame(quality),
         'partitions': partitions,
         'initial_capital': base_config.initial_capital,

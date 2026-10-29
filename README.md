@@ -1,106 +1,81 @@
-# Market Edge — ETF Intraday Research Lab (v0.3)
+# Market Edge v0.4 — Intraday QQQ / TQQQ / SQQQ Research
 
-A working, **research-only** Streamlit dashboard for testing simple intraday strategies on **QQQ signals** and **TQQQ/SQQQ execution**. No orders can be sent to a broker.
+[**Open the Streamlit application**](https://trading-strategy-research-m28fia7syvi6jd5ganw6ch.streamlit.app/) · [Source code](https://github.com/Anduve11/trading-strategy-research)
 
-## Browser-only deployment (free)
+**Research only. No live brokerage orders, no background trading, and no evidence of profitable signals yet.** The app simulates buying TQQQ on bullish QQQ signals and SQQQ on bearish signals, subject to stops, profit targets, costs, position allocation, and mandatory same-day exit.
 
-1. Open the private GitHub repository **[Anduve11/trading-strategy-research](https://github.com/Anduve11/trading-strategy-research)**. The source code is stored in this repository.
-2. Visit **https://share.streamlit.io** and sign in with GitHub. Authorize Streamlit to access this private repository if prompted.
-3. Select **Create app**, choose repository `Anduve11/trading-strategy-research`, branch `main`, and entrypoint **`app.py`**. Deploy.
-4. Select **Synthetic demo** to check the UI works. **Synthetic results have no trading significance.**
-5. Select **Upload historical CSV** for real data, or **Alpaca historical ETF data**. The app now defaults to historical consolidated SIP data (more than 15 minutes old), which Alpaca Basic currently allows without a paid real-time plan. Select IEX only for comparison/debugging; its one-exchange coverage is not suitable for execution-quality research. API credentials are entered using masked in-session inputs and are *not saved to files*. Never commit credentials to GitHub.
+## What v0.4 adds
 
-The app uses free hosting without any computer remaining on. The app may sleep during inactivity; it does not continuously trade or collect market data while asleep.
+- **One-time historical archive** in a **private Supabase Storage bucket**. Monthly compressed CSV files, keyed by source/feed/adjustment/symbols/year-month. The archive **reuses previously saved months** on future experiments. Unfinished downloads are resumable because completed months are already saved.
+- **Dedicated archival job**: `Archive missing historical months — no backtest` populates the archive without running strategy simulations. There is no automatic daily fetch yet; rerun to add completed months.
+- **First market-regime study**: previous-session 50-day QQQ moving-average trend (±1% neutral zone) and 20-day realized volatility (<25% / ≥25% annualized). No current-day or future closing prices are used for classification. Reports show each strategy's regime results on development data only.
+- **Multi-year 16-candidate research engine** is unchanged in trading logic. The archive accelerates repeated experiments; it does not claim better predictions or improved returns.
+- The **Multi-year strategy laboratory** works even when a short-period Alpaca download has not been completed.
 
-## Data schema
+The classification is a **descriptive research feature, not a regime-based trading rule yet**. Macro announcements, VIX, options, news sentiment, fundamentals, market breadth, and AI are **not integrated yet**. We must establish clean baseline results before expanding the feature set.
 
-Provide 1-minute bars with columns:
+## Deploy and test
 
-```csv
-timestamp,symbol,open,high,low,close,volume
-2026-06-01T13:30:00Z,QQQ,500.0,500.2,499.8,500.1,10000
-2026-06-01T13:30:00Z,TQQQ,60.0,60.1,59.9,60.05,10000
-2026-06-01T13:30:00Z,SQQQ,35.0,35.1,34.9,34.98,10000
-```
+1. The app is automatically deployed from `main` on GitHub to Streamlit Community Cloud.
+2. The synthetic demo exercises the UI; its results have **no real-market meaning**.
+3. For actual backtests, choose `Alpaca historical ETF data`, the historical **SIP** feed, and enter your *rotated* paper-market-data credentials into the masked fields. Do not post keys in screenshots, chats or GitHub.
+4. Without cloud storage, studies still run but redownload all missing price history each time. For permanent storage, follow the instructions below.
 
-Actual files must have many consecutive complete 9:30–15:59 ET sessions. Timestamp is the **start** of each one-minute bar. Each ETF must have its **own actual price history**. Use prices consistently split-adjusted, and align timestamps across symbols. Only regular trading hours are analyzed. A partial day, missing bars, or inaccurate corporate-action handling can materially distort results.
+## One-time setup: private Supabase historical archive
 
-## Currently supported experiments
+**Supabase and Streamlit secrets must be configured by the account owner. Do not send their keys in chat or commit them to GitHub.**
 
-- Four distinct signals: Momentum + VWAP, Opening Range Breakout, EMA Trend, VWAP Reversion.
-- Buy TQQQ on bullish QQQ signals; buy SQQQ on bearish signals; otherwise cash.
-- At most one trade per day, entry next-bar open, profit/stop checks on actual ETF bars, mandatory intraday closing.
-- Configurable take profit, stop loss, per-side execution friction, allocation, and capital.
-- Conservative stop-first fill if the stop and target are both inside a single minute.
-- Development / holdout split, equity chart, individual trade records, CSV export.
-- Parameter sweep on *development-only* data, followed by separately initiated holdout evaluation.
+1. Create a project in [Supabase](https://supabase.com/dashboard). In **Storage**, create a bucket exactly named `market-edge-history` and set it to **Private**. Do not create a public bucket.
+2. In Supabase **Project Settings → API Keys**, create/copy a **server-side Secret key** (`sb_secret_...`). Do **not** use a browser-safe publishable key. Secret keys bypass Row Level Security; keep them private. A separately scoped backend service would provide stronger production isolation than a general project secret.
+3. Open [Streamlit Community Cloud](https://share.streamlit.io). Select the existing Market Edge app → `...` → **Settings** → **Secrets**. Add the following TOML with **your own real values**, then save:
 
-## What this version is NOT
+   ```toml
+   SUPABASE_URL = "https://YOURPROJECT.supabase.co"
+   SUPABASE_SECRET_KEY = "sb_secret_YOUR_PRIVATE_KEY"
+   SUPABASE_BUCKET = "market-edge-history"
+   MARKET_EDGE_ADMIN_PASSWORD = "CHOOSE_A_LONG_UNIQUE_PASSPHRASE"
+   ```
 
-- Not a validated profitable strategy, live-trading bot, tick simulator, or real-time monitoring platform.
-- Synthetic market data is for functionality tests ONLY; it has no historical market meaning.
-- Alpaca's free IEX feed is a small subset of exchange volume; it is unsuitable for high-confidence execution analysis without validating against consolidated market data.
-- The simple 70/30 split is a *first* test, not a definitive walk-forward backtest; repeat use of the holdout will make it contaminated.
-- Max drawdown is measured from realized daily/trade equity, not intraday mark-to-market excursions.
-- Stop orders do not guarantee maximum losses in real markets.
+   Use a unique strong passphrase (minimum 12 characters) saved to your password manager. These values go **only** into the Streamlit Secrets page, not into the Python source or repository.
+4. In the app, select Alpaca as the source. Expand **Multi-year strategy laboratory**. Enter the research admin passphrase in its **masked** field. Check **Use reusable Supabase archive**. The stored server-side key is used only after the passphrase matches.
+5. For a first download choose 2024–2026 and **Archive missing historical months — no backtest**. Later choose 2019–2026 and repeat. Each completed month is saved individually. If hosting interrupts the task, run it again: stored months will be reused.
+6. Finally, choose **Run multi-year backtest — no real orders**. The model reads from cached monthly files, downloads missing months if needed, and exports research results. Continue using the same archived history for later experiments without pulling it all again.
 
-## Data sourcing and costs
+**Storage details:** monthly regular-session QQQ, TQQQ, SQQQ minute bars are compressed with gzip. The `alpaca/sip/split/1min` namespace separates this particular price history from other providers or adjustments. The current code keeps archives **immutable**; it will not silently replace existing months. Future ticker splits and revised historical bars may require an explicit, audited refresh or archive version change. Keep a backup: free-tier storage is not a substitute for an independent long-term backup.
 
-- Streamlit Community Cloud: free personal application hosting (https://docs.streamlit.io/deploy/streamlit-community-cloud)
-- Alpaca Market Data: free basic IEX research data, paid consolidated SIP feed (https://docs.alpaca.markets/us/docs/about-market-data-api)
-- Historical ETF bars: (https://docs.alpaca.markets/us/reference/stockbars)
+**Security:** This is a research prototype hosted at a publicly reachable URL. The admin passphrase gates archival read/write operations, but a production system should use stronger authentication and restricted backend credentials. Never include API secrets in screenshots or copy them into public GitHub. Rotate any exposed keys.
 
-A later research-quality upgrade should obtain consolidated trades+quotes (bid/ask, timestamps), improve missing-data checks, calibrate slippage, handle exchange calendars/halts, benchmark vs simple no-trade/buy-and-hold, and use nested walk-forward train/validation/test splits.
+## Our baseline trading simulation
 
-## Optional local development
+Four entry signals: **Momentum + VWAP**, **Opening range breakout**, **EMA trend**, **VWAP reversion**. Four predeclared exit pairs: `(target 1%, stop 1%)`, `(1.5%, 1%)`, `(2%, 1.5%)`, `(3%, 2%)` → **16 configurations**. One trade at most per session, next-minute open entry, conservative stop-first when both levels are hit within a bar, exit before the regular session ends. Costs and allocation are adjustable. No live orders. Intrabar dynamics, bid/ask quotes, liquidity and market impact remain unmodeled.
+
+Example research partition for 2019–2026: **2019–2023 development**, **2024 validation**, and **2025–2026 final holdout**. Only development chooses a candidate; the final holdout should remain untouched for subsequent tuning. Costs, regime thresholds, and execution assumptions must be frozen before interpreting holdout results.
+
+### Regime methodology
+
+At the *start* of each historical session, using only **prior completed daily QQQ closing prices**:
+
+- Compare the prior close with the SMA of the last **50** completed sessions: >1% above = uptrend, >1% below = downtrend, otherwise sideways.
+- Compute standard deviation of the last **20** close-to-close log returns, annualize by √252; ≥25% = high-volatility regime.
+- First 50 sessions are **insufficient history** and excluded from the displayed conditional analysis.
+- Labels are assigned to that session's simulated trade. They are **not yet used to choose or block trades**.
+
+This avoids obvious forward-looking leakage, but does **not** prove causal predictability or provide a trading advantage. Very small regime groups are flagged as exploratory.
+
+## Research limitations
+
+- Alpaca's **historical SIP bars** are consolidated trade bars, not full order-book quotes or guaranteed executable fills; free real-time data is different.
+- Dataset quality warnings assume 390-minute days; special sessions require a proper market calendar and comprehensive adjustment for missing minutes. This is a **research-quality gap** before considering live orders.
+- Free Streamlit hosting can restart, time out or run out of resources; monthly cloud archive objects persist once saved, but the in-progress study and its summary don't automatically survive restarting the app.
+- Alpaca data availability, usage quotas and storage pricing should be reviewed before a long archival run. We have not completed the 2019–2026 import on your account yet.
+- Seek compliance clearance before enabling any automated trading, especially with leveraged ETFs and workplace trading restrictions.
+
+## Development
 
 ```bash
-python -m pip install -r requirements.txt
-python -m pip install pytest
+python -m pip install -r requirements.txt pytest
 python -m pytest -q
 streamlit run app.py
 ```
 
-## Initial roadmap
-
-1. Backtest correctness, systematic bias checks, missing-bar diagnostics.
-2. Reliable multi-year consolidated historical 1-minute bars and quote data.
-3. Walk-forward research harness with multiple-testing adjustment and transaction-cost sensitivity.
-4. Advanced signals: economic calendar, spreads, volatility, time of day, trend/regime detection.
-5. Paper trading with brokerage sandbox; independent risk engine and emergency kill switch.
-6. **Only after evidence and compliance approval:** consider a strictly separated live-trading service.
-
-*Research and education only; not financial advice.*
-
-## Repository structure
-
-```text
-app.py                  # Streamlit website
-trade_lab/data.py       # Import, validation, synthetic test data
-trade_lab/signals.py    # Four entry signal algorithms
-trade_lab/engine.py     # Intraday trade simulation and results
-trade_lab/alpaca.py     # Optional historical bar API retrieval
-tests/test_engine.py    # Automated correctness checks
-requirements.txt        # Hosted app dependencies
-.gitignore              # Protects local secrets and temporary files
-```
-
-## Historical data quality
-
-When loading bars, the dashboard shows rough full-session bar coverage and the percentage of minute timestamps where QQQ, TQQQ and SQQQ are all present. The count assumes 390-minute sessions; market half-days may make it misleading. The app warns when coverage or timestamp alignment falls below 98%. These are warnings, not proof of sound market data or executable fill prices. For real-money research we still need exchange calendars, quote-based spread estimates, and stricter missing-minute handling.
-
-**Security:** Never commit Alpaca credentials to GitHub. Rotate a key immediately if it appears in a screenshot, log, or chat.
-
-
-## Multi-year research lab (v0.3)
-
-To explore **real** intraday performance using your *own* Alpaca API credentials:
-
-1. Select **Alpaca historical ETF data**, feed **SIP**, and load a short recent period to check data quality.
-2. Expand **Multi-year strategy laboratory**. Try 2024–2026 first, then 2019–2026 once the shorter experiment works.
-3. Press **Run multi-year backtest**. The app requests consolidated SIP bars in quarters, calculates QQQ entry signals once per quarter, and simulates 16 predetermined entry/exit combinations on TQQQ/SQQQ. It carries each hypothetical account balance forward across quarters.
-4. Development years alone select the winning candidate; later validation and final holdout results are shown only for that preselected candidate. Export both result CSVs.
-
-Historical study partitions use early ~65% of calendar years for development, the next year for validation, and the remaining years as the final holdout. For 2019–2026 that means **2019–2023 development, 2024 validation, 2025–2026 final holdout**. For an initial 2024–2026 test, each of those years is its own period. Returns reflect the allocation percentage entered in the sidebar; 10% of equity invested per trade means that a +1% trade earns approximately +0.1% on the whole account before friction.
-
-**Important limitations:** Free Streamlit hosting is not a persistent research database and long runs can exhaust hosting/network resources. The app does not save historical bars when a session ends. Download resulting CSV reports. Minute bars do not reveal the order of intraminute stop/target hits; the simulator conservatively assumes stops fire first. SIP consolidated trades are not quotes or guaranteed executable fills. There is no live brokerage execution. Historical winning parameters are not proof of an ongoing trading edge. Never commit Alpaca API keys to GitHub or share them in screenshots.
+`trade_lab/archive.py` is the private cloud archive; `trade_lab/regimes.py` is the leak-resistant regime classifier; `trade_lab/research.py` orchestrates multi-year tests; `trade_lab/engine.py` is the execution simulator; `trade_lab/alpaca.py` loads consolidated historical bars. Streamlit app secrets are intentionally never committed.

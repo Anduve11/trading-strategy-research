@@ -1,5 +1,6 @@
-"""Market Edge v0.3: research-only ETF intraday experimentation."""
+"""Market Edge v0.4: research-only ETF intraday experimentation."""
 from dataclasses import replace
+import hmac
 from datetime import date
 import io
 import pandas as pd
@@ -32,6 +33,7 @@ from trade_lab.alpaca import fetch_bars
 from trade_lab.signals import STRATEGIES
 from trade_lab.engine import Config, simulate, summarize, split_by_session
 from trade_lab.research import run_study, select_development_winner, default_candidates, year_partitions
+from trade_lab.archive import SupabaseArchive, ArchivedFetcher, month_windows
 
 st.set_page_config(page_title='Market Edge — Research Lab', page_icon='📈', layout='wide')
 st.title('Market Edge  |  Intraday ETF Research Lab')
@@ -84,27 +86,42 @@ with st.sidebar:
     allocation = st.slider('Allocation % of equity per trade', 1, 100, 10, 1)
     capital = st.number_input('Initial hypothetical capital ($)', min_value=1000, max_value=1000000, value=10000, step=1000)
 
-if bars is None:
-    st.info('Supply a historical CSV or retrieve Alpaca data, or use the synthetic demo to inspect the app.')
-    st.stop()
-try:
-    train, test, cutoff = split_by_session(bars)
-except ValueError as exc:
-    st.error(str(exc))
-    st.stop()
-
-st.info(f'Data loaded: **{len(bars):,}** one-minute bars across **{bars.timestamp.dt.tz_convert("America/New_York").dt.date.nunique()}** sessions. Holdout starts **{cutoff}**. Data source: **{source}**.')
-coverage = audit_bar_coverage(bars)
-st.caption(f"Data quality: **{coverage['expected_coverage_pct']:.1f}%** of bars expected for full 390-minute sessions, "
-           f"and **{coverage['aligned_minutes_pct']:.1f}%** of observed minute timestamps contain all three symbols. "
-           'Coverage denominator assumes full trading days; half-days require a trading calendar adjustment.')
-if coverage['expected_coverage_pct'] < 98 or coverage['aligned_minutes_pct'] < 98:
-    st.warning('Incomplete or unsynchronized 1-minute bars detected. Backtest results may be distorted by missing price minutes. Prefer historical SIP data; do not treat this run as execution-quality evidence.')
-if source == 'Alpaca historical ETF data' and st.session_state.get('alpaca_feed') == 'iex':
-    st.warning('This run uses the limited IEX feed. Select historical SIP, click Fetch, and compare coverage before interpreting the strategy results.')
 config = Config(strategy=strategy,target_pct=target_pct,stop_pct=stop_pct,
                 slippage_bps_each_side=slip,fee_bps_each_side=fees,
                 allocation_pct=allocation,initial_capital=capital)
+
+if bars is None:
+    st.info('Use the multi-year laboratory below, or retrieve recent bars in the sidebar for single-period comparisons.')
+else:
+    try:
+        train, test, cutoff = split_by_session(bars)
+    except ValueError as exc:
+        st.error(str(exc))
+        st.stop()
+    st.info(f'Data loaded: **{len(bars):,}** one-minute bars across **{bars.timestamp.dt.tz_convert("America/New_York").dt.date.nunique()}** sessions. Holdout starts **{cutoff}**. Data source: **{source}**.')
+    coverage = audit_bar_coverage(bars)
+    st.caption(f"Data quality: **{coverage['expected_coverage_pct']:.1f}%** of bars expected for full 390-minute sessions, "
+               f"and **{coverage['aligned_minutes_pct']:.1f}%** of observed minute timestamps contain all three symbols. "
+               'Coverage denominator assumes full trading days; half-days require a trading calendar adjustment.')
+    if coverage['expected_coverage_pct'] < 98 or coverage['aligned_minutes_pct'] < 98:
+        st.warning('Incomplete or unsynchronized 1-minute bars detected. Backtest results may be distorted by missing price minutes. Prefer historical SIP data; do not treat this run as execution-quality evidence.')
+    if source == 'Alpaca historical ETF data' and st.session_state.get('alpaca_feed') == 'iex':
+        st.warning('This run uses the limited IEX feed. Select historical SIP, click Fetch, and compare coverage before interpreting the strategy results.')
+
+
+def archive_config():
+    """Read credentials from server-side secrets only. No values are displayed."""
+    try:
+        config = {k: str(st.secrets.get(k, '')).strip() for k in
+                  ('SUPABASE_URL', 'SUPABASE_SECRET_KEY', 'MARKET_EDGE_ADMIN_PASSWORD')}
+        config['bucket'] = str(st.secrets.get('SUPABASE_BUCKET', 'market-edge-history'))
+    except (FileNotFoundError, KeyError):
+        return None
+    if not all(config[k] for k in ('SUPABASE_URL', 'SUPABASE_SECRET_KEY','MARKET_EDGE_ADMIN_PASSWORD')):
+        return None
+    if len(config['MARKET_EDGE_ADMIN_PASSWORD']) < 12:
+        return None
+    return config
 
 # Historical research runs use bounded quarterly requests instead of loading
 # an eight-year raw minute-bar dataset in memory.
@@ -129,13 +146,55 @@ with st.expander('🧪 Multi-year strategy laboratory (2019 onward)', expanded=F
         if periods:
             st.caption('Research partitions: ' + ', '.join(f'{y} {phase.lower()}' for y, phase in periods.items()))
         st.caption('Suggested first run: 2024–2026. Then expand to 2019–2026. '
-                   'Large historical downloads may take minutes or run into free-hosting limits. '
-                   'Study output stays in your browser session; download the results.')
+                   'Monthly archives will survive Streamlit restarts once private storage is configured. '
+                   'Long research runs may still exceed free-hosting limits.')
+
+        cloud_config = archive_config()
+        cloud_ready = False
+        if cloud_config is None:
+            st.info('Permanent cloud archive is not configured yet. Backtesting still works, '
+                    'but Alpaca history will be downloaded again next time. See README for Supabase setup.')
+        else:
+            entered = st.text_input('Research admin passphrase (only for using private archive)',
+                                    type='password', key='archive_passphrase')
+            cloud_ready = bool(entered) and hmac.compare_digest(
+                entered, cloud_config['MARKET_EDGE_ADMIN_PASSWORD'])
+            if entered and not cloud_ready:
+                st.error('Passphrase is not correct. The private archive remains locked.')
+            if cloud_ready:
+                st.success('Private archive unlocked for this browser session. '
+                           'Already archived months will be reused; missing months will be downloaded and saved.')
+        reuse_cloud = st.checkbox('Use reusable Supabase archive (private, monthly files)',
+                                  value=cloud_ready, disabled=not cloud_ready)
+
         minimum = st.number_input('Minimum development trades', min_value=1,
                                   max_value=1000, value=100, step=25)
         max_dd = st.slider('Maximum development drawdown (%)', 5, 60, 20, 5)
         st.caption(f'16 fixed candidates = 4 entry strategies × 4 take-profit/stop pairs. '
                    f'Allocation {allocation}%, slippage {slip:g} bps and fees {fees:g} bps per side.')
+        if cloud_ready and reuse_cloud:
+            if st.button('Archive missing historical months — no backtest', key='archive_only'):
+                if not key or not secret:
+                    st.error('Enter your current Alpaca API credentials in the sidebar first.')
+                else:
+                    begin, finish = date(first_year, 1, 1), min(last_complete, date(last_year, 12, 31))
+                    windows = list(month_windows(begin, finish))
+                    bar = st.progress(0)
+                    status = st.empty()
+                    try:
+                        archive = SupabaseArchive(cloud_config['SUPABASE_URL'],
+                                                  cloud_config['SUPABASE_SECRET_KEY'], cloud_config['bucket'])
+                        loader = ArchivedFetcher(archive,
+                            lambda a,b: fetch_bars(key, secret, a, b, feed='sip'))
+                        for idx, (month_first,month_last) in enumerate(windows,1):
+                            loader(month_first.isoformat(), month_last.isoformat())
+                            bar.progress(idx/len(windows))
+                            status.caption(f'{idx}/{len(windows)} months checked — {month_first:%Y-%m}')
+                        st.success(f'Archive ready: reused {loader.cache_hits} months and saved '
+                                   f'{loader.saved} previously missing months. No trades executed.')
+                    except Exception as exc:
+                        st.error('Archive interrupted: ' + str(exc)[:240] +
+                                 '. Months saved before the interruption remain available; rerun to resume.')
         if st.button('Run multi-year backtest — no real orders', type='primary', key='run_historical_lab'):
             if last_year-first_year+1 < 3:
                 st.error('Choose at least three calendar years to separate development, validation, and holdout.')
@@ -151,9 +210,19 @@ with st.expander('🧪 Multi-year strategy laboratory (2019 onward)', expanded=F
                     status.caption(f'{done}/{total} historical chunks: {label}')
                 try:
                     with st.spinner('Downloading quarterly SIP data and backtesting fixed candidates...'):
-                        study = run_study(lambda a, b: fetch_bars(key, secret, a, b, feed='sip'),
-                                          begin, end, config, candidates=default_candidates(),
-                                          progress=progress)
+                        downloader = lambda a, b: fetch_bars(key, secret, a, b, feed='sip')
+                        cloud_fetcher = None
+                        if reuse_cloud and cloud_ready:
+                            archive = SupabaseArchive(cloud_config['SUPABASE_URL'],
+                                                      cloud_config['SUPABASE_SECRET_KEY'], cloud_config['bucket'])
+                            cloud_fetcher = ArchivedFetcher(archive, downloader)
+                        fetcher = cloud_fetcher if cloud_fetcher is not None else downloader
+                        study = run_study(fetcher, begin, end, config,
+                                          candidates=default_candidates(), progress=progress)
+                    study['archive_status'] = (f"Reused {cloud_fetcher.cache_hits} saved months; "
+                                               f"downloaded and archived {cloud_fetcher.saved} months."
+                                               if cloud_fetcher is not None else
+                                               'Archive not enabled: history was downloaded without permanent caching.')
                     st.session_state['long_study'] = study
                     st.session_state['long_study_selection'] = (int(minimum), -float(max_dd))
                     st.success('Historical research finished. These results use real historical data.')
@@ -164,6 +233,7 @@ with st.expander('🧪 Multi-year strategy laboratory (2019 onward)', expanded=F
             n, dd = st.session_state.get('long_study_selection', (100, -20.0))
             selected = select_development_winner(study, n, dd)
             st.divider()
+            st.caption(study.get('archive_status', ''))
             st.subheader('Preselected winner — chosen ONLY on development results')
             st.write('**Selected configuration:** ' + selected['winner'])
             if not selected['qualified']:
@@ -178,6 +248,23 @@ with st.expander('🧪 Multi-year strategy laboratory (2019 onward)', expanded=F
             st.dataframe(selected['development_table'][['candidate','trades','win_rate',
                                                         'total_return','max_drawdown','profit_factor']],
                          use_container_width=True, hide_index=True)
+            st.markdown('**Market-regime breakdown for the selected strategy (development only)**')
+            regimes = study.get('regime_results')
+            if regimes is not None and not regimes.empty:
+                reg = regimes.loc[(regimes['candidate'] == selected['winner']) &
+                                  (regimes['period'] == 'Development') &
+                                  (regimes['regime'] != 'Insufficient history')].copy()
+                if reg.empty:
+                    st.info('Not enough historical QQQ sessions to calculate a regime breakdown.')
+                else:
+                    st.dataframe(reg[['regime','trades','win_rate','avg_trade_return_pct','pnl_dollars']],
+                                 hide_index=True, use_container_width=True)
+                    if (reg['trades'] < 30).any():
+                        st.warning('Some regimes have fewer than 30 trades. Treat differences as exploratory, not predictive.')
+                    st.caption('Regimes use only PREVIOUS days’ QQQ closes: 50-day trend and 20-day realized volatility. '
+                               'No future data is used in the classification. These results do not automatically filter trades.')
+                st.download_button('Download all regime summaries CSV',regimes.to_csv(index=False),
+                                   file_name='market_edge_regime_summary.csv',mime='text/csv')
             st.download_button('Download strategy research results CSV',
                                study['results'].to_csv(index=False),
                                file_name=f"market_edge_study_{study['start']}_{study['end']}.csv", mime='text/csv')
@@ -186,6 +273,9 @@ with st.expander('🧪 Multi-year strategy laboratory (2019 onward)', expanded=F
                                file_name='market_edge_coverage.csv', mime='text/csv')
             st.caption('Caution: this is a bar-based simulation, not a brokerage fill model. '
                        'Minute bars, slippage assumptions, corporate actions, and model selection all create uncertainty.')
+
+if bars is None:
+    st.stop()
 
 single, sweep = st.tabs(['Strategy backtest', 'Compare entry and exit strategies'])
 
