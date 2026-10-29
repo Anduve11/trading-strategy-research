@@ -1,16 +1,14 @@
 # Market Edge — ETF Intraday Research Lab (v0.1)
 
-**Live application:** [Open Market Edge](https://trading-strategy-research-m28fia7syvi6jd5ganw6ch.streamlit.app/)
-
 A working, **research-only** Streamlit dashboard for testing simple intraday strategies on **QQQ signals** and **TQQQ/SQQQ execution**. No orders can be sent to a broker.
 
 ## Browser-only deployment (free)
 
-1. Open the public GitHub repository **[Anduve11/trading-strategy-research](https://github.com/Anduve11/trading-strategy-research)**. The source code is stored in this repository. Do not commit API keys or other secrets.
+1. Open the private GitHub repository **[Anduve11/trading-strategy-research](https://github.com/Anduve11/trading-strategy-research)**. The source code is stored in this repository.
 2. Visit **https://share.streamlit.io** and sign in with GitHub. Authorize Streamlit to access this private repository if prompted.
 3. Select **Create app**, choose repository `Anduve11/trading-strategy-research`, branch `main`, and entrypoint **`app.py`**. Deploy.
 4. Select **Synthetic demo** to check the UI works. **Synthetic results have no trading significance.**
-5. Select **Upload historical CSV** for real data, or **Alpaca historical ETF data** for experimentation with the incomplete free IEX feed. API credentials are entered using masked in-session inputs and are *not saved to files*. Never commit credentials to GitHub.
+5. Select **Upload historical CSV** for real data, or **Alpaca historical ETF data**. The app now defaults to historical consolidated SIP data (more than 15 minutes old), which Alpaca Basic currently allows without a paid real-time plan. Select IEX only for comparison/debugging; its one-exchange coverage is not suitable for execution-quality research. API credentials are entered using masked in-session inputs and are *not saved to files*. Never commit credentials to GitHub.
 
 The app uses free hosting without any computer remaining on. The app may sleep during inactivity; it does not continuously trade or collect market data while asleep.
 
@@ -86,3 +84,9 @@ tests/test_engine.py    # Automated correctness checks
 requirements.txt        # Hosted app dependencies
 .gitignore              # Protects local secrets and temporary files
 ```
+
+## Historical data quality
+
+When loading bars, the dashboard shows rough full-session bar coverage and the percentage of minute timestamps where QQQ, TQQQ and SQQQ are all present. The count assumes 390-minute sessions; market half-days may make it misleading. The app warns when coverage or timestamp alignment falls below 98%. These are warnings, not proof of sound market data or executable fill prices. For real-money research we still need exchange calendars, quote-based spread estimates, and stricter missing-minute handling.
+
+**Security:** Never commit Alpaca credentials to GitHub. Rotate a key immediately if it appears in a screenshot, log, or chat.
