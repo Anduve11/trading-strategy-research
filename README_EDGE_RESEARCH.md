@@ -26,6 +26,8 @@ That is a new hypothesis, not a promise of better returns.
   a QQQ options surface. Source: https://www.cboe.com/tradable-products/vix/vix-historical-data/
 - Optional FRED dollar/euro, WTI oil and high-yield credit spreads, delayed
   two business days, with no shared forward-filled availability clock.
+  Source groups must each cover at least 95% of historical sessions; a
+  truncated credit feed does not remove well-covered currency or oil inputs.
 - All included feature sets use identical eligible sessions. Optional source
   failures and missing coverage are reported explicitly in private diagnostics.
 

@@ -8,7 +8,7 @@ from trade_lab.edge_research import (PRICE_FEATURES, OPTION_FEATURES, EXITS, Exi
     complete_session, extract_decisions, add_outcomes, simulate_window,
     append_option_features, fetch_option_history, choose_side, account_daily,
     metrics, block_bootstrap_interval, feature_specs, walk_forward_search)
-from trade_lab.cross_asset import append_cross_asset
+from trade_lab.cross_asset import append_cross_asset, covered_features
 
 
 @pytest.fixture(scope='module')
@@ -116,6 +116,15 @@ def test_cross_asset_waits_two_business_days_and_handles_negative_oil():
     source.loc[8:, 'BAMLH0A0HYM2'] = 999.
     changed = append_cross_asset(decisions, source)
     pd.testing.assert_frame_equal(result, changed)
+
+
+def test_truncated_credit_history_does_not_remove_currency_and_oil():
+    frame = pd.DataFrame({'usd_eur_change5': [1.] * 100, 'oil_change5': [1.] * 100,
+                          'credit_spread': [np.nan] * 60 + [1.] * 40,
+                          'credit_change5': [np.nan] * 60 + [1.] * 40})
+    included, excluded = covered_features(frame)
+    assert included == ['usd_eur_change5', 'oil_change5']
+    assert excluded['credit']['coverage'] == .4
 
 
 def test_trade_cushion_ties_and_account_allocation():

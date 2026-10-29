@@ -15,7 +15,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from trade_lab.archive import SupabaseArchive, month_windows
 from trade_lab.edge_research import (extract_decisions, add_outcomes, fetch_option_history,
     append_option_features, feature_specs, walk_forward_search, PRICE_FEATURES, OPTION_FEATURES)
-from trade_lab.cross_asset import fetch_cross_asset, append_cross_asset, CROSS_FEATURES
+from trade_lab.cross_asset import fetch_cross_asset, append_cross_asset, covered_features
 from trade_lab.macro import fetch_fred_market_daily, append_previous_day_macro, MACRO_FEATURES
 from scripts.automated_research import required_env, send_private_report
 
@@ -58,10 +58,13 @@ def main():
     try:
         history, hashes = fetch_cross_asset()
         joined = append_cross_asset(data, history)
-        if joined[list(CROSS_FEATURES)].notna().all(axis=1).mean() < .95:
-            raise ValueError('Less than 95% cross-asset feature coverage')
+        cross_columns, excluded_sources = covered_features(joined)
+        if excluded_sources:
+            source_errors['cross_asset_coverage'] = excluded_sources
+        if not cross_columns:
+            raise ValueError('No cross-asset source meets the historical coverage requirement')
         data = joined
-        columns = [*PRICE_FEATURES, *MACRO_FEATURES, *CROSS_FEATURES]
+        columns = [*PRICE_FEATURES, *MACRO_FEATURES, *cross_columns]
         specs['price_macro_cross_asset'] = {'columns': columns, 'macro_weight': 1.}
         if options_available:
             specs['all_market_context'] = {'columns': [*columns, *OPTION_FEATURES], 'macro_weight': 1.}

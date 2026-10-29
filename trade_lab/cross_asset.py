@@ -12,6 +12,22 @@ SERIES = ('DEXUSEU', 'DCOILWTICO', 'BAMLH0A0HYM2')
 CROSS_FEATURES = ('usd_eur_change5', 'oil_change5', 'credit_spread', 'credit_change5')
 
 
+def covered_features(frame, minimum=.95):
+    """Keep fully covered source groups without discarding unrelated sources."""
+    if not 0 < minimum <= 1 or frame.empty:
+        raise ValueError('Invalid coverage sample/threshold')
+    groups = {'currency': ('usd_eur_change5',), 'oil': ('oil_change5',),
+              'credit': ('credit_spread', 'credit_change5')}
+    included, excluded = [], {}
+    for name, columns in groups.items():
+        coverage = float(frame[list(columns)].notna().all(axis=1).mean())
+        if coverage >= minimum:
+            included.extend(columns)
+        else:
+            excluded[name] = {'coverage': coverage, 'reason': 'Below predeclared 95% historical coverage requirement'}
+    return included, excluded
+
+
 def fetch_cross_asset(session=None):
     import requests
     session = session or requests.Session()
