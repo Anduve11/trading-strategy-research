@@ -44,10 +44,13 @@ class MemoryHTTP:
     def __init__(self):
         self.storage={}
     def get(self,url,headers,timeout):
-        return DummyResponse(200,self.storage[url]) if url in self.storage else DummyResponse(404)
+        # Supabase may return HTTP 400 although the JSON reports a missing
+        # object (statusCode 404). This is the production regression case.
+        return (DummyResponse(200,self.storage[url]) if url in self.storage else
+                DummyResponse(400,b'{"statusCode":"404","error":"not_found","message":"Object not found","code":"NoSuchKey"}'))
     def post(self,url,headers,data,timeout):
         if url in self.storage:
-            return DummyResponse(409,b'Asset Already Exists')
+            return DummyResponse(400,b'{"statusCode":"409","code":"KeyAlreadyExists","message":"Object already exists"}')
         self.storage[url]=data
         return DummyResponse(200)
 
@@ -67,6 +70,36 @@ def test_archive_only_downloads_each_month_once():
     assert len(a)==len(b)
     assert set(remote.storage)
     assert 'Authorization' not in archive._headers()  # new sb_secret_ is not a JWT
+
+
+class ErrorHTTP:
+    def __init__(self, payload, status=400):
+        self.payload=payload
+        self.status=status
+    def get(self,url,headers,timeout):
+        return DummyResponse(self.status,self.payload)
+
+
+def test_missing_object_is_only_a_cache_miss_not_a_fatal_http_400():
+    archive=SupabaseArchive('https://xyzproject.supabase.co','sb_secret_FAKE_FOR_TESTS',
+                            session=ErrorHTTP(b'{"statusCode":"404","code":"NoSuchKey","message":"Object not found"}'))
+    assert archive.load(date(2024,1,1)) is None
+    legacy=SupabaseArchive('https://xyzproject.supabase.co','sb_secret_FAKE_FOR_TESTS',
+                           session=ErrorHTTP(b'{"statusCode":"404","error":"not_found","message":"Object not found"}'))
+    assert legacy.load(date(2024,1,1)) is None
+
+
+def test_missing_bucket_and_bad_access_are_not_mistaken_for_cache_misses():
+    for payload, expected in [
+        (b'{"statusCode":"404","code":"NoSuchBucket","message":"Bucket not found"}', 'bucket'),
+        (b'{"statusCode":"403","code":"AccessDenied","message":"Access denied"}', 'access denied'),
+        (b'{"statusCode":"400","code":"InvalidRequest","message":"Invalid request"}', 'InvalidRequest'),
+        (b'not json', 'unavailable'),
+    ]:
+        archive=SupabaseArchive('https://xyzproject.supabase.co','sb_secret_FAKE_FOR_TESTS',
+                                session=ErrorHTTP(payload))
+        with pytest.raises(RuntimeError,match=expected):
+            archive.load(date(2024,1,1))
 
 
 def test_archive_invalid_origin_refused():

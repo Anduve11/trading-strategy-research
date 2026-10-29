@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from datetime import date, timedelta
 from io import BytesIO
 import gzip
+import json
 import re
 from urllib.parse import quote, urlparse
 
@@ -79,22 +80,47 @@ class SupabaseArchive:
         return (self.project_url.rstrip('/') + '/storage/v1/object/' +
                 quote(self.bucket, safe='') + '/' + quote(path, safe='/'))
 
+    @staticmethod
+    def _storage_error(resp) -> tuple[str, str]:
+        """Read Supabase's structured error, not just the HTTP status.
+
+        Supabase's storage gateway can send HTTP 400 for a missing object
+        while its JSON body reports code=NoSuchKey and statusCode=404.
+        Do not confuse NoSuchBucket or AccessDenied with a cache miss.
+        """
+        try:
+            payload = json.loads(resp.text)
+            if not isinstance(payload, dict):
+                return '', ''
+            return str(payload.get('code', '')).strip(), str(payload.get('message', '')).strip()
+        except (ValueError, TypeError):
+            return '', ''
+
     def load(self, month: date) -> pd.DataFrame | None:
         resp = self.session.get(self._url(month_key(month)), headers=self._headers(), timeout=35)
-        if resp.status_code == 404:
-            return None
-        if not resp.ok:
-            raise RuntimeError(f'Cloud archive read failed (HTTP {resp.status_code}). Check bucket and server secrets.')
-        return decode_bars(resp.content, month)
+        if resp.ok:
+            return decode_bars(resp.content, month)
+        code, message = self._storage_error(resp)
+        if code == 'NoSuchKey' or (code in ('', 'not_found') and message.lower() == 'object not found'):
+            return None  # Expected cache miss: download from Alpaca, then archive.
+        if code == 'NoSuchBucket' or (code in ('', 'not_found') and message.lower() == 'bucket not found'):
+            raise RuntimeError(f'Supabase storage bucket "{self.bucket}" not found or inaccessible. Create the PRIVATE bucket with this exact name.')
+        if code in ('AccessDenied', 'InvalidJWT', 'InvalidSignature', 'Unauthorized'):
+            raise RuntimeError(f'Supabase storage access denied ({code}). Verify the server-side key in Streamlit Secrets and bucket permissions.')
+        raise RuntimeError(f'Cloud archive read failed (HTTP {resp.status_code}; storage code {code or "unavailable"}). Check Supabase project URL, bucket and server secrets.')
 
     def save(self, month: date, bars: pd.DataFrame) -> None:
         payload = encode_bars(bars)
         headers = {**self._headers(), 'Content-Type':'application/gzip', 'cache-control':'3600'}
         resp = self.session.post(self._url(month_key(month)), headers=headers, data=payload, timeout=90)
-        if resp.status_code in (400, 409) and 'already' in resp.text.lower():
+        if resp.ok:
+            return
+        code, message = self._storage_error(resp)
+        if code in ('KeyAlreadyExists', 'ResourceAlreadyExists') or (code == '' and resp.status_code == 409 and 'already' in message.lower()):
             return  # Immutable archival objects: don't silently overwrite.
-        if not resp.ok:
-            raise RuntimeError(f'Cloud archive write failed (HTTP {resp.status_code}). Check the private bucket and permissions.')
+        if code == 'NoSuchBucket':
+            raise RuntimeError(f'Cloud archive write failed: bucket "{self.bucket}" not found. Check Storage settings.')
+        raise RuntimeError(f'Cloud archive write failed (HTTP {resp.status_code}; storage code {code or "unavailable"}). Check the private bucket and permissions.')
 
 
 @dataclass
