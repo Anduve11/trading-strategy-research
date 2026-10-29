@@ -3,7 +3,7 @@ from dataclasses import replace
 import io
 import pandas as pd
 import streamlit as st
-from trade_lab.data import generate_synthetic, validate_bars
+from trade_lab.data import generate_synthetic, validate_bars, audit_bar_coverage
 from trade_lab.alpaca import fetch_bars
 from trade_lab.signals import STRATEGIES
 from trade_lab.engine import Config, simulate, summarize, split_by_session
@@ -30,7 +30,9 @@ with st.sidebar:
             except Exception as exc:
                 st.error(f'CSV validation error: {exc}')
     else:
-        st.caption('Alpaca free IEX is a single-exchange feed, NOT consolidated market data. Fine for experimenting, not trustworthy for 1-minute execution estimates.')
+        feed_label = st.selectbox('Historical price feed', ['SIP — consolidated (recommended)', 'IEX — single exchange (incomplete)'])
+        feed = 'sip' if feed_label.startswith('SIP') else 'iex'
+        st.caption('Historical SIP data older than 15 minutes is available on Alpaca Basic. IEX covers one exchange only and may omit many 1-minute bars.')
         key = st.text_input('Alpaca key ID', type='password')
         secret = st.text_input('Alpaca secret', type='password')
         a,b = st.columns(2)
@@ -39,10 +41,14 @@ with st.sidebar:
         if st.button('Fetch historical data'):
             try:
                 with st.spinner('Retrieving three aligned symbols...'):
-                    st.session_state['alpaca_bars'] = fetch_bars(key, secret, str(start), str(end))
+                    downloaded = fetch_bars(key, secret, str(start), str(end), feed=feed)
+                    st.session_state['alpaca_bars'] = downloaded
+                    st.session_state['alpaca_feed'] = feed
             except Exception as exc:
                 st.error(str(exc))
         bars = st.session_state.get('alpaca_bars')
+        if bars is not None:
+            st.caption(f"Currently loaded: {st.session_state.get('alpaca_feed', 'unknown').upper()} feed. Click Fetch after changing feed or dates.")
     st.divider()
     st.header('Risk / execution assumptions')
     strategy = st.selectbox('Entry strategy', STRATEGIES)
@@ -63,6 +69,14 @@ except ValueError as exc:
     st.stop()
 
 st.info(f'Data loaded: **{len(bars):,}** one-minute bars across **{bars.timestamp.dt.tz_convert("America/New_York").dt.date.nunique()}** sessions. Holdout starts **{cutoff}**. Data source: **{source}**.')
+coverage = audit_bar_coverage(bars)
+st.caption(f"Data quality: **{coverage['expected_coverage_pct']:.1f}%** of bars expected for full 390-minute sessions, "
+           f"and **{coverage['aligned_minutes_pct']:.1f}%** of observed minute timestamps contain all three symbols. "
+           'Coverage denominator assumes full trading days; half-days require a trading calendar adjustment.')
+if coverage['expected_coverage_pct'] < 98 or coverage['aligned_minutes_pct'] < 98:
+    st.warning('Incomplete or unsynchronized 1-minute bars detected. Backtest results may be distorted by missing price minutes. Prefer historical SIP data; do not treat this run as execution-quality evidence.')
+if source == 'Alpaca historical ETF data' and st.session_state.get('alpaca_feed') == 'iex':
+    st.warning('This run uses the limited IEX feed. Select historical SIP, click Fetch, and compare coverage before interpreting the strategy results.')
 config = Config(strategy=strategy,target_pct=target_pct,stop_pct=stop_pct,
                 slippage_bps_each_side=slip,fee_bps_each_side=fees,
                 allocation_pct=allocation,initial_capital=capital)
