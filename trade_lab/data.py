@@ -65,3 +65,22 @@ def generate_synthetic(days: int = 65, seed: int = 73) -> pd.DataFrame:
                 rows.append((ts.tz_convert('UTC'), sym, op, high, low, close, int(rng.integers(500,4500))))
                 prices[sym] = close
     return validate_bars(pd.DataFrame(rows, columns=['timestamp','symbol','open','high','low','close','volume']))
+
+
+def audit_bar_coverage(bars: pd.DataFrame) -> dict:
+    """Quick intraday coverage audit; full-day denominator ignores half-day schedules."""
+    if bars.empty:
+        raise ValueError('Cannot audit an empty bar dataset.')
+    session_count = bars['timestamp'].dt.tz_convert(ET).dt.date.nunique()
+    expected = session_count * 390 * 3
+    symbol_counts = bars.groupby('timestamp')['symbol'].nunique()
+    aligned = int((symbol_counts == 3).sum())
+    return {
+        'sessions': int(session_count),
+        'bars': int(len(bars)),
+        'expected_full_session_bars': int(expected),
+        'expected_coverage_pct': 100 * len(bars) / expected if expected else 0.,
+        'observed_minutes': int(len(symbol_counts)),
+        'aligned_minutes': aligned,
+        'aligned_minutes_pct': 100 * aligned / len(symbol_counts) if len(symbol_counts) else 0.,
+    }
