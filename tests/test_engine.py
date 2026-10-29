@@ -1,5 +1,5 @@
 import pandas as pd
-from trade_lab.data import generate_synthetic, validate_bars
+from trade_lab.data import generate_synthetic, validate_bars, audit_bar_coverage
 from trade_lab.engine import Config, simulate, summarize, split_by_session
 from trade_lab.signals import STRATEGIES, calculate_signals
 
@@ -55,3 +55,13 @@ def test_zero_fee_but_higher_slippage_cannot_improve_same_trade():
     if len(low):
         assert list(low['ticker'])==list(high['ticker'])
         assert (high['net_return_pct'].to_numpy() <= low['net_return_pct'].to_numpy()+1e-8).all()
+
+
+def test_full_session_and_missing_bar_coverage():
+    df = generate_synthetic(2)
+    full = audit_bar_coverage(df)
+    assert full['expected_coverage_pct'] == 100
+    assert full['aligned_minutes_pct'] == 100
+    missing = audit_bar_coverage(df.iloc[1:].copy())
+    assert missing['expected_coverage_pct'] < 100
+    assert missing['aligned_minutes_pct'] < 100
