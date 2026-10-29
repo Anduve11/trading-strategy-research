@@ -49,6 +49,30 @@ def test_feature_state_crosses_month_boundaries_without_changes(synthetic_bars):
     assert state == final_state
 
 
+def test_missing_intraday_bar_preserves_known_close_but_missing_close_clears_history(synthetic_bars):
+    days = synthetic_bars.timestamp.dt.tz_convert('America/New_York').dt.date
+    last_day = max(days)
+    q = synthetic_bars.symbol.eq('QQQ') & days.eq(last_day)
+    damaged = synthetic_bars.drop(synthetic_bars.index[q][100])
+    _, state, excluded = extract_decisions(damaged)
+    assert len(state) == 55 and excluded == 1
+    damaged = synthetic_bars.drop(synthetic_bars.index[q][-1])
+    _, state, excluded = extract_decisions(damaged)
+    assert state == [] and excluded == 1
+
+
+def test_scheduled_halfday_preserves_history(synthetic_bars):
+    days = synthetic_bars.timestamp.dt.tz_convert('America/New_York').dt.date
+    last_day = max(days)
+    close = (pd.Timestamp(last_day).tz_localize('America/New_York') + pd.Timedelta(hours=13)).tz_convert('UTC')
+    data = synthetic_bars.loc[~days.eq(last_day) | synthetic_bars.timestamp.lt(close)]
+    closes = {day: (pd.Timestamp(day).tz_localize('America/New_York') + pd.Timedelta(hours=16)).tz_convert('UTC') for day in days.unique()}
+    closes[last_day] = close
+    features, state, excluded = extract_decisions(data, session_closes=closes)
+    assert len(state) == 55 and excluded == 1
+    assert last_day not in set(features.date)
+
+
 def price_window():
     index = pd.date_range('2024-06-03 14:00Z', periods=60, freq='min')
     return pd.DataFrame({'open': 100., 'high': 100.01, 'low': 99.99, 'close': 100.}, index=index)

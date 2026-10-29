@@ -10,6 +10,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import exchange_calendars as xcals
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from trade_lab.archive import SupabaseArchive, month_windows
@@ -23,13 +24,15 @@ from scripts.automated_research import required_env, send_private_report
 def main():
     url, secret = required_env('SUPABASE_URL'), required_env('SUPABASE_SECRET_KEY')
     archive = SupabaseArchive(url, secret, os.getenv('SUPABASE_BUCKET', 'market-edge-history'))
+    calendar = xcals.get_calendar('XNYS', start='2019-01-01', end='2026-09-30')
+    session_closes = {pd.Timestamp(day).date(): row['close'] for day, row in calendar.schedule.iterrows()}
     parts, prior, excluded, price_hash = [], [], 0, hashlib.sha256()
     for first, _ in month_windows(date(2019, 1, 1), date(2026, 9, 30)):
         bars = archive.load(first)
         if bars is None:
             raise RuntimeError(f'Missing historical price month {first:%Y-%m}')
         price_hash.update(pd.util.hash_pandas_object(bars.sort_index(axis=1), index=False).values.tobytes())
-        decisions, prior, bad = extract_decisions(bars, prior)
+        decisions, prior, bad = extract_decisions(bars, prior, session_closes=session_closes)
         excluded += bad
         if not decisions.empty:
             parts.append(add_outcomes(bars, decisions))
@@ -76,7 +79,7 @@ def main():
     # Strict common sample makes every feature ablation directly comparable.
     data = data.replace([np.inf, -np.inf], np.nan).dropna(subset=all_columns)
     if data.date.nunique() < 1500:
-        raise RuntimeError('Too few common eligible research dates')
+        raise RuntimeError(f'Too few common eligible research dates ({data.date.nunique()}); inspect calendar/history coverage')
     result = walk_forward_search(data, specs)
     ranking = result.pop('ranking')
     if len(ranking) > 1000:
@@ -110,6 +113,7 @@ def main():
             'exit_targets_pct': [None, .25, .5, .75], 'exit_stops_pct': [None, .25, .5, .5],
             'costs_bps_per_side': [5, 10], 'matched_rows': len(data), 'rows_before_source_alignment': original_rows,
             'excluded_incomplete_sessions': excluded, 'matched_sessions': int(data.date.nunique()),
+            'session_calendar': 'exchange-calendars 4.13.2 XNYS; official half-day closes preserved in lag history',
             'price_data_sha256': price_hash.hexdigest(),
             'macro_data_sha256': hashlib.sha256(market.to_csv(index=False).encode()).hexdigest(),
             'optional_source_checksums': optional_sources, 'optional_source_errors': source_errors,

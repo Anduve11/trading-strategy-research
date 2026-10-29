@@ -28,6 +28,10 @@ That is a new hypothesis, not a promise of better returns.
   two business days, with no shared forward-filled availability clock.
   Source groups must each cover at least 95% of historical sessions; a
   truncated credit feed does not remove well-covered currency or oil inputs.
+- Scheduled early closes remain valid lagged daily-close observations using
+  the exchange calendar. A missing intraday bar excludes execution that day
+  without erasing 51 days of known closing prices. Missing closing bars still
+  invalidate the lag sequence; intraday volume baselines use complete prefixes.
 - All included feature sets use identical eligible sessions. Optional source
   failures and missing coverage are reported explicitly in private diagnostics.
 

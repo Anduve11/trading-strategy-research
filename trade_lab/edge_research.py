@@ -20,7 +20,7 @@ PRICE_FEATURES = (
     'acceleration', 'range_so_far', 'range_position', 'vwap_gap',
     'path_efficiency', 'volume_ratio', 'gap_reversal',
     'prior_return_1', 'prior_return_5', 'prior_return_20',
-    'prior_vol_20', 'prior_sma50_gap', 'prior_range_position',
+    'prior_vol_20', 'prior_sma50_gap', 'prior_close_range_position',
 )
 OPTION_FEATURES = ('prior_vix9d_vix', 'prior_vvix', 'prior_vvix_change5',
                    'implied_realized_ratio')
@@ -56,12 +56,13 @@ def complete_session(group: pd.DataFrame) -> bool:
                for s in ('QQQ', 'TQQQ', 'SQQQ'))
 
 
-def extract_decisions(bars: pd.DataFrame, history: list[dict] | None = None):
+def extract_decisions(bars: pd.DataFrame, history: list[dict] | None = None, session_closes=None):
     """One row/day/decision, with completed-bar features and separate QQQ labels.
 
     A 09:59 bar completes at 10:00 ET; enter the 10:00 open. The 30-minute
     label ends at the 10:29 close. No post-entry prices enter PRICE_FEATURES.
-    Invalid QQQ days clear lag history rather than inventing a daily close.
+    Known official session closes, including half-days, enter lag history even
+    if a missing intraday bar makes that day ineligible for new trades.
     """
     prior = list(history or [])
     rows, excluded = [], 0
@@ -69,9 +70,11 @@ def extract_decisions(bars: pd.DataFrame, history: list[dict] | None = None):
     for day, whole in bars.groupby(days, sort=True):
         q = whole.loc[whole.symbol.eq('QQQ')].sort_values('timestamp')
         qminutes = q.timestamp.dt.tz_convert(ET).dt.strftime('%H:%M')
-        qgood = len(q) == 390 and not q.timestamp.duplicated().any() and qminutes.tolist() == list(
-            pd.date_range('2000-01-01 09:30', periods=390, freq='min').strftime('%H:%M'))
-        if not qgood:
+        expected_close = ((pd.Timestamp(day).tz_localize(ET) + pd.Timedelta(hours=16)).tz_convert('UTC')
+                          if session_closes is None else session_closes.get(day))
+        last_minute = None if expected_close is None else pd.Timestamp(expected_close) - pd.Timedelta(minutes=1)
+        close_known = last_minute is not None and not q.timestamp.duplicated().any() and last_minute in set(q.timestamp)
+        if not close_known:
             prior = []
             excluded += 1
             continue
@@ -88,8 +91,8 @@ def extract_decisions(bars: pd.DataFrame, history: list[dict] | None = None):
                 close = float(early.iloc[-1].close)
                 opening = float(q.iloc[0].open)
                 volume = float(early.volume.sum())
-                vhist = [x['volumes'][minute] for x in prior[-20:]]
-                if min(vhist) <= 0 or volume <= 0:
+                vhist = [x['volumes'][minute] for x in prior[-20:] if x['volumes'][minute] > 0]
+                if len(vhist) < 15 or volume <= 0:
                     continue
                 hi, lo = float(early.high.max()), float(early.low.min())
                 vwap = float(((early.high + early.low + early.close) / 3 * early.volume).sum() / volume)
@@ -98,8 +101,8 @@ def extract_decisions(bars: pd.DataFrame, history: list[dict] | None = None):
                 gap = opening / closes[-1] - 1
                 ret5 = close / float(q.iloc[pos - 5].close) - 1
                 before5 = float(q.iloc[pos - 5].close / q.iloc[pos - 10].close - 1)
-                lag_hi = max(x['high'] for x in prior[-20:])
-                lag_lo = min(x['low'] for x in prior[-20:])
+                lag_hi = max(x['close'] for x in prior[-20:])
+                lag_lo = min(x['close'] for x in prior[-20:])
                 row = {'date': day, 'timestamp': q.iloc[pos].timestamp,
                        'decision_minute': minute, 'gap': gap,
                        'gap_scaled': gap / max(rv, 1e-6),
@@ -116,14 +119,15 @@ def extract_decisions(bars: pd.DataFrame, history: list[dict] | None = None):
                        'prior_return_20': closes[-1] / closes[-21] - 1,
                        'prior_vol_20': rv * np.sqrt(252),
                        'prior_sma50_gap': closes[-1] / closes[-50:].mean() - 1,
-                       'prior_range_position': (closes[-1] - lag_lo) / max(lag_hi - lag_lo, 1e-9)}
+                       'prior_close_range_position': (closes[-1] - lag_lo) / max(lag_hi - lag_lo, 1e-9)}
                 for horizon in HORIZONS:
                     row[f'qqq_forward_{horizon}m_pct'] = float(
                         100 * (q.iloc[pos + horizon].close / q.iloc[pos + 1].open - 1))
                 rows.append(row)
-        prior.append({'close': float(q.iloc[-1].close), 'high': float(q.high.max()),
+        prior.append({'close': float(q.loc[q.timestamp.eq(last_minute), 'close'].iloc[0]), 'high': float(q.high.max()),
                       'low': float(q.low.min()),
-                      'volumes': {minute: float(q.loc[qminutes.to_numpy() <= minute, 'volume'].sum())
+                      'volumes': {minute: (float(q.loc[qminutes.to_numpy() <= minute, 'volume'].sum())
+                                           if int((qminutes <= minute).sum()) == (int(minute[:2]) * 60 + int(minute[3:]) - 570 + 1) else 0.)
                                   for minute in DECISION_MINUTES}})
         prior = prior[-65:]
     return pd.DataFrame(rows), prior, excluded
