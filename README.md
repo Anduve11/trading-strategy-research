@@ -1,10 +1,12 @@
 # Market Edge — ETF Intraday Research Lab (v0.1)
 
+**Live application:** [Open Market Edge](https://trading-strategy-research-m28fia7syvi6jd5ganw6ch.streamlit.app/)
+
 A working, **research-only** Streamlit dashboard for testing simple intraday strategies on **QQQ signals** and **TQQQ/SQQQ execution**. No orders can be sent to a broker.
 
 ## Browser-only deployment (free)
 
-1. Open the private GitHub repository **[Anduve11/trading-strategy-research](https://github.com/Anduve11/trading-strategy-research)**. The source code is stored in this repository.
+1. Open the public GitHub repository **[Anduve11/trading-strategy-research](https://github.com/Anduve11/trading-strategy-research)**. The source code is stored in this repository. Do not commit API keys or other secrets.
 2. Visit **https://share.streamlit.io** and sign in with GitHub. Authorize Streamlit to access this private repository if prompted.
 3. Select **Create app**, choose repository `Anduve11/trading-strategy-research`, branch `main`, and entrypoint **`app.py`**. Deploy.
 4. Select **Synthetic demo** to check the UI works. **Synthetic results have no trading significance.**
