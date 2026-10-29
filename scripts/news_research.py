@@ -37,7 +37,10 @@ def month_decisions(bars):
 
 def archive_years(archive,api_key,secret,start_year,end_year):
     done=0;hits=0;articles=0;days=0
-    for first,last in month_windows(date(start_year,1,1),date(end_year,12,31)):
+    begin=max(START,date(start_year,1,1))
+    finish=min(END,date(end_year,12,31))
+    if finish<begin:raise ValueError('Archive years do not overlap the frozen research period')
+    for first,last in month_windows(begin,finish):
         old=load_features(archive,first)
         if old is not None:
             hits+=1;continue

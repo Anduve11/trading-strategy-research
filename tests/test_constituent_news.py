@@ -91,3 +91,19 @@ def test_out_of_interval_updated_story_is_excluded_not_retimestamped():
                 'next_page_token':None})
     data=fetch_news_chunk('fake','fake',date(2024,6,1),date(2024,7,1),session=OldNews(),rate_delay=0)
     assert data.id.tolist()==['112']
+
+
+def test_news_archive_never_requests_months_after_frozen_price_history(monkeypatch):
+    import scripts.news_research as study
+    requested=[]
+    def cached(archive,first):
+        requested.append(first)
+        return pd.DataFrame({'cached':[True]})
+    monkeypatch.setattr(study,'load_features',cached)
+    class NoPriceDownloads:
+        def load(self,month):
+            raise AssertionError('Cached news must not request any ETF history')
+    study.archive_years(NoPriceDownloads(),'unused','unused',2025,2026)
+    assert len(requested)==21
+    assert max(requested)==date(2026,9,1)
+    assert date(2026,10,1) not in requested
