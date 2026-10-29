@@ -35,7 +35,13 @@ def test_multiyear_study_compounds_and_selects_only_development():
     assert len(calls) == 12
     assert len(report['results']) == 6
     assert set(report['results'].period) == {'Development','Validation','Final holdout'}
+    assert set(report['annual_results'].year) == {2024,2025,2026}
+    assert set(report['equity_curve'].candidate) == {c.label() for c in candidates}
     for name in [c.label() for c in candidates]:
+        each_year = report['annual_results'].loc[report['annual_results'].candidate == name].sort_values('year')
+        assert len(each_year) == 3
+        assert each_year.iloc[0].starting_equity == pytest.approx(10000.0, abs=0.01)
+        assert each_year.ending_equity.to_list()[:-1] == pytest.approx(each_year.starting_equity.to_list()[1:], abs=0.03)
         rows = report['results'][report['results'].candidate == name]
         train = rows[rows.period == 'Development'].iloc[0]
         valid = rows[rows.period == 'Validation'].iloc[0]

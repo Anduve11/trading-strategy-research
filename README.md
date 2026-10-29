@@ -1,4 +1,4 @@
-# Market Edge v0.4 — Intraday QQQ / TQQQ / SQQQ Research
+# Market Edge v0.5 — Intraday QQQ / TQQQ / SQQQ Research
 
 [**Open the Streamlit application**](https://trading-strategy-research-m28fia7syvi6jd5ganw6ch.streamlit.app/) · [Source code](https://github.com/Anduve11/trading-strategy-research)
 
@@ -79,3 +79,12 @@ streamlit run app.py
 ```
 
 `trade_lab/archive.py` is the private cloud archive; `trade_lab/regimes.py` is the leak-resistant regime classifier; `trade_lab/research.py` orchestrates multi-year tests; `trade_lab/engine.py` is the execution simulator; `trade_lab/alpaca.py` loads consolidated historical bars. Streamlit app secrets are intentionally never committed.
+
+
+## Archive-only research and annual results (v0.5)
+
+After creating a complete Supabase monthly archive, select **Alpaca historical ETF data** as source without entering any Alpaca credentials. Unlock the archive using your research admin passphrase, select **Use reusable Supabase archive** and **Use archived data ONLY**, choose first year 2019 and last year 2026, then click **Run multi-year backtest**. This mode makes no Alpaca API requests and fails clearly on any missing archived month. Only the server reads private compressed archive objects.
+
+The study simulates all 16 *predeclared* candidate strategies, selects a configuration from development years, then displays that configuration's development, validation, and final historical holdout. It now shows yearly returns, starting/ending balance, trade counts, drawdowns, and the selected strategy's daily realized-equity curve. Export yearly results and the equity curve as CSV; the saved price archive is not modified during a read-only backtest.
+
+**Important:** These results are *bar-based research estimates*, not audited profits. The model currently has four simple technical indicators and a descriptive market-regime table; it does **not** use fundamentals, news sentiment, real quote spreads, or trade execution data. We must validate the full archive for exchange-calendar and split-adjustment anomalies, compare against proper benchmarks, and perform prospective paper trading before enabling live trading.

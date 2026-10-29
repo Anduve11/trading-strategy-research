@@ -129,6 +129,8 @@ def run_study(fetcher: Callable[[str, str], pd.DataFrame],
             progress(index, len(windows), f'Processed {begin} through {finish}')
 
     rows = []
+    annual_rows = []
+    daily_equity_parts = []
     for candidate in candidates:
         for phase in ('Development', 'Validation', 'Final holdout'):
             key = candidate, phase
@@ -136,6 +138,25 @@ def run_study(fetcher: Callable[[str, str], pd.DataFrame],
             timeline = pd.concat(equity_parts[key], ignore_index=True) if equity_parts[key] else pd.DataFrame()
             initial = period_start_balance.get(key, base_config.initial_capital)
             summary = summarize(trades, timeline, initial)
+            if not timeline.empty:
+                annual_equity = timeline.copy()
+                annual_equity['year'] = pd.to_datetime(annual_equity['date']).dt.year
+                for year, year_equity in annual_equity.groupby('year', sort=True):
+                    first = year_equity.iloc[0]
+                    year_start = float(first['equity']) / (1 + float(first['daily_return_pct']) / 100)
+                    year_trades = trades.loc[pd.to_datetime(trades['date']).dt.year == year] if not trades.empty else pd.DataFrame()
+                    year_summary = summarize(year_trades, year_equity, year_start)
+                    annual_rows.append({
+                        'candidate': candidate.label(), 'year': int(year), 'period': phase,
+                        'starting_equity': round(year_start, 2),
+                        'ending_equity': round(float(year_equity.iloc[-1]['equity']), 2),
+                        'net_pnl': round(float(year_equity.iloc[-1]['equity']) - year_start, 2),
+                        **year_summary,
+                    })
+                slim = timeline[['date', 'equity']].copy()
+                slim['candidate'] = candidate.label()
+                slim['period'] = phase
+                daily_equity_parts.append(slim)
             rows.append({
                 'candidate': candidate.label(), 'strategy': candidate.strategy,
                 'take_profit': candidate.target_pct, 'stop_loss': candidate.stop_pct,
@@ -146,6 +167,8 @@ def run_study(fetcher: Callable[[str, str], pd.DataFrame],
             })
     return {
         'results': pd.DataFrame(rows),
+        'annual_results': pd.DataFrame(annual_rows),
+        'equity_curve': pd.concat(daily_equity_parts, ignore_index=True) if daily_equity_parts else pd.DataFrame(),
         'regime_results': summarize_regime_trades(pd.concat(regime_trade_parts, ignore_index=True) if regime_trade_parts else pd.DataFrame()),
         'coverage': pd.DataFrame(quality),
         'partitions': partitions,

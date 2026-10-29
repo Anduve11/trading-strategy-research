@@ -127,7 +127,7 @@ class SupabaseArchive:
 class ArchivedFetcher:
     """Cache-first range fetcher compatible with run_study(fetcher=...)."""
     archive: SupabaseArchive
-    download_month: object  # callable(start_iso, end_iso) returning validated bars
+    download_month: object | None = None  # None = strict read-only archive
     cache_hits: int = 0
     saved: int = 0
     read_rows: int = 0
@@ -138,6 +138,8 @@ class ArchivedFetcher:
         for month_start, month_end in month_windows(start, end):
             bars = self.archive.load(month_start)
             if bars is None:
+                if self.download_month is None:
+                    raise ValueError(f'Historical archive missing {month_start:%Y-%m}. Run the archive download to fill this month before backtesting; no Alpaca request was made.')
                 bars = self.download_month(month_start.isoformat(), month_end.isoformat())
                 # Fail closed: never archive incomplete or mislabeled months.
                 if bars.empty:

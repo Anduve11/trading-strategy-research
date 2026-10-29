@@ -136,3 +136,18 @@ def test_regime_summary_does_not_infer_profitability():
     assert summary.iloc[0].trades==2
     assert summary.iloc[0].win_rate==50.0
     assert summary.iloc[0].pnl_dollars==5.0
+
+
+def test_strict_archive_mode_reuses_saved_month_and_never_downloads():
+    remote = MemoryHTTP()
+    archive = SupabaseArchive('https://xyzproject.supabase.co', 'sb_secret_FAKE_FOR_TESTS', session=remote)
+    # First write valid data to fake cloud storage.
+    august = for_month(generate_synthetic(3), 2026, 8)
+    archive.save(date(2026, 8, 1), august)
+    only = ArchivedFetcher(archive, download_month=None)
+    result = only('2026-08-01', '2026-08-31')
+    assert len(result) == len(august)
+    assert only.cache_hits == 1 and only.saved == 0
+    with pytest.raises(ValueError, match='Historical archive missing 2026-09'):
+        only('2026-09-01', '2026-09-30')
+    assert len(remote.storage) == 1

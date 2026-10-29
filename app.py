@@ -1,4 +1,4 @@
-"""Market Edge v0.4: research-only ETF intraday experimentation."""
+"""Market Edge v0.5: research-only ETF intraday experimentation."""
 from dataclasses import replace
 import hmac
 from datetime import date
@@ -162,10 +162,14 @@ with st.expander('🧪 Multi-year strategy laboratory (2019 onward)', expanded=F
             if entered and not cloud_ready:
                 st.error('Passphrase is not correct. The private archive remains locked.')
             if cloud_ready:
-                st.success('Private archive unlocked for this browser session. '
-                           'Already archived months will be reused; missing months will be downloaded and saved.')
+                st.success('Private archive unlocked for this browser session. Historical research can now run directly from saved months without Alpaca keys.')
         reuse_cloud = st.checkbox('Use reusable Supabase archive (private, monthly files)',
                                   value=cloud_ready, disabled=not cloud_ready)
+        archive_only = st.checkbox('Use archived data ONLY — no Alpaca key or new downloads',
+                                   value=cloud_ready, disabled=not (cloud_ready and reuse_cloud),
+                                   help='All selected months must already be in the archive. Missing files stop the run without contacting Alpaca.')
+        if archive_only and cloud_ready and reuse_cloud:
+            st.caption('Read-only research mode: only the Supabase archive is accessed. Alpaca API credentials are not required.')
 
         minimum = st.number_input('Minimum development trades', min_value=1,
                                   max_value=1000, value=100, step=25)
@@ -198,8 +202,8 @@ with st.expander('🧪 Multi-year strategy laboratory (2019 onward)', expanded=F
         if st.button('Run multi-year backtest — no real orders', type='primary', key='run_historical_lab'):
             if last_year-first_year+1 < 3:
                 st.error('Choose at least three calendar years to separate development, validation, and holdout.')
-            elif not key or not secret:
-                st.error('Enter your current Alpaca API credentials into the masked fields first.')
+            elif not (archive_only and cloud_ready and reuse_cloud) and (not key or not secret):
+                st.error('Enter Alpaca credentials, or unlock the cloud archive and select archive-only mode.')
             else:
                 begin = date(first_year, 1, 1)
                 end = min(last_complete, date(last_year, 12, 31))
@@ -209,8 +213,9 @@ with st.expander('🧪 Multi-year strategy laboratory (2019 onward)', expanded=F
                     meter.progress(min(1.0, done / total))
                     status.caption(f'{done}/{total} historical chunks: {label}')
                 try:
-                    with st.spinner('Downloading quarterly SIP data and backtesting fixed candidates...'):
-                        downloader = lambda a, b: fetch_bars(key, secret, a, b, feed='sip')
+                    with st.spinner('Loading historical months and backtesting 16 fixed candidates...'):
+                        downloader = (None if archive_only else
+                                      lambda a, b: fetch_bars(key, secret, a, b, feed='sip'))
                         cloud_fetcher = None
                         if reuse_cloud and cloud_ready:
                             archive = SupabaseArchive(cloud_config['SUPABASE_URL'],
@@ -219,8 +224,9 @@ with st.expander('🧪 Multi-year strategy laboratory (2019 onward)', expanded=F
                         fetcher = cloud_fetcher if cloud_fetcher is not None else downloader
                         study = run_study(fetcher, begin, end, config,
                                           candidates=default_candidates(), progress=progress)
-                    study['archive_status'] = (f"Reused {cloud_fetcher.cache_hits} saved months; "
-                                               f"downloaded and archived {cloud_fetcher.saved} months."
+                    study['archive_status'] = (f"Loaded {cloud_fetcher.cache_hits} saved month accesses; "
+                                               f"downloaded and archived {cloud_fetcher.saved} new months. "
+                                               + ('No Alpaca API calls were made.' if archive_only else '')
                                                if cloud_fetcher is not None else
                                                'Archive not enabled: history was downloaded without permanent caching.')
                     st.session_state['long_study'] = study
@@ -244,6 +250,26 @@ with st.expander('🧪 Multi-year strategy laboratory (2019 onward)', expanded=F
             st.dataframe(view, use_container_width=True, hide_index=True)
             st.caption('Development determines the winner. Validation and final holdout are shown only '
                        'for that selected configuration, and must not be used to retune it.')
+            annual = study.get('annual_results', pd.DataFrame())
+            curve = study.get('equity_curve', pd.DataFrame())
+            if not annual.empty:
+                st.markdown('**Annual results for the preselected strategy**')
+                year_view = annual.loc[annual['candidate'].eq(selected['winner'])].sort_values('year')
+                st.dataframe(year_view[['year', 'period', 'trades', 'win_rate', 'total_return',
+                                        'net_pnl', 'starting_equity', 'ending_equity', 'max_drawdown']],
+                             use_container_width=True, hide_index=True)
+                st.download_button('Download selected strategy annual results CSV',
+                                   year_view.to_csv(index=False),
+                                   file_name='market_edge_selected_annual.csv', mime='text/csv')
+            if not curve.empty:
+                selected_curve = curve.loc[curve['candidate'].eq(selected['winner'])].sort_values('date')
+                st.markdown('**Simulated account equity ($10,000 initial; position sizing from sidebar)**')
+                st.line_chart(selected_curve.set_index('date')['equity'])
+                st.caption('This equity curve includes realized trades only and does not show intratrade drawdowns. '
+                           'Cash ($10,000 unchanged) is the no-trade baseline; this is not a buy-and-hold ETF comparison.')
+                st.download_button('Download selected strategy equity history CSV',
+                                   selected_curve.to_csv(index=False),
+                                   file_name='market_edge_selected_equity.csv', mime='text/csv')
             st.markdown('**Development ranking of all 16 predefined candidates**')
             st.dataframe(selected['development_table'][['candidate','trades','win_rate',
                                                         'total_return','max_drawdown','profit_factor']],
