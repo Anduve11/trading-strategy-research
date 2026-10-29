@@ -88,3 +88,20 @@ After creating a complete Supabase monthly archive, select **Alpaca historical E
 The study simulates all 16 *predeclared* candidate strategies, selects a configuration from development years, then displays that configuration's development, validation, and final historical holdout. It now shows yearly returns, starting/ending balance, trade counts, drawdowns, and the selected strategy's daily realized-equity curve. Export yearly results and the equity curve as CSV; the saved price archive is not modified during a read-only backtest.
 
 **Important:** These results are *bar-based research estimates*, not audited profits. The model currently has four simple technical indicators and a descriptive market-regime table; it does **not** use fundamentals, news sentiment, real quote spreads, or trade execution data. We must validate the full archive for exchange-calendar and split-adjustment anomalies, compare against proper benchmarks, and perform prospective paper trading before enabling live trading.
+## Automated research runner (v0.6, optional)
+
+**State:** Source code and private Supabase results table are prepared. The GitHub Action cannot run until its GitHub Actions secrets are configured. No live trading is possible.
+
+GitHub repository → **Settings → Secrets and variables → Actions → New repository secret**. Create:
+- `SUPABASE_URL` = the HTTPS URL of the Market Edge Supabase project.
+- `SUPABASE_SECRET_KEY` = its private backend Supabase secret key (`sb_secret_...` or legacy `service_role`).
+- Optional `ALPACA_KEY_ID` and `ALPACA_SECRET_KEY` (paper market data), only to fill any missing archive months.
+
+Use GitHub's encrypted secrets UI, **not** chat, GitHub source, screenshots, or a committed .env file. These values are different from the Streamlit admin passphrase; we deliberately do not persist that passphrase for automation.
+
+The repository includes [Automated research (paper-only)](https://github.com/Anduve11/trading-strategy-research/actions/workflows/autonomous_research.yml). Choose **Run workflow** after configuring the two required secrets. A recurring job is configured for the first day of each month, but it currently evaluates a **frozen 2019–Sep 2026 research baseline**; the monthly recurrence alone does not generate a fresh forward test. Adding genuine prospective testing requires separate, date-stamped future prices and a locked model specification.
+
+The job evaluates 168 predeclared entry/exit settings × 8 predeclared regime filters = 1,344 experiments, ranks **development-only** performance, stores a ranked Top 100 and diagnostic metrics in private `public.market_edge_research_runs` (with RLS and no anon/authenticated grants). The 2025–Sep 2026 sample was already inspected, so results from it must be considered **historical diagnostics, not a fresh holdout**. No automatic trading, deployment, or self-modifying model selection is enabled.
+
+[GitHub Actions secrets documentation](https://docs.github.com/en/actions/security-for-github-actions/security-guides/using-secrets-in-github-actions)
+
