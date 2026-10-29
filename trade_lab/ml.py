@@ -122,23 +122,26 @@ def split_periods(df):
             'inspected_2025_2026':df.loc[(years>=2025)&(years<=2026)].copy()}
 
 
-def fit_evaluate(df, thresholds=(0.53,0.57,0.60,0.65), min_dev_trades=15):
+def fit_evaluate(df, thresholds=(0.53,0.57,0.60,0.65), min_dev_trades=15, feature_columns=None):
     """Select model/threshold ONLY with 2023 results; report 2024 and 2025+.
 
     Historical 2025+ data has been inspected for other strategies and is
     retrospective diagnostics, never a fresh final holdout.
     """
     from sklearn.metrics import brier_score_loss, roc_auc_score
+    columns=list(FEATURES if feature_columns is None else feature_columns)
+    if not columns or len(set(columns))!=len(columns):raise ValueError("Invalid feature columns")
+    if df[columns].isna().any().any():raise ValueError("Macro/price feature data contains missing values")
     parts=split_periods(df)
     train=parts['training']; dev=parts['development_validation']
     if len(train)<300 or len(dev)<100 or train.target_up.nunique()<2:
         raise ValueError('Too little complete training/development data for ML research.')
     table=[]; trained={}
     for name,model in models().items():
-        model.fit(train[list(FEATURES)],train.target_up.astype(int))
+        model.fit(train[columns],train.target_up.astype(int))
         trained[name]=model
         for threshold in thresholds:
-            p=model.predict_proba(dev[list(FEATURES)])[:,1]
+            p=model.predict_proba(dev[columns])[:,1]
             sides=decide(p,threshold)
             met=evaluate_decisions(dev,sides)
             table.append({'model':name,'threshold':float(threshold),
@@ -160,13 +163,13 @@ def fit_evaluate(df, thresholds=(0.53,0.57,0.60,0.65), min_dev_trades=15):
     model_name=str(leader.model)
     chosen=models()[model_name]
     historic=pd.concat([train,dev],ignore_index=True)
-    chosen.fit(historic[list(FEATURES)],historic.target_up.astype(int))
+    chosen.fit(historic[columns],historic.target_up.astype(int))
     reports={}
     for period in ('development_validation','independent_2024','inspected_2025_2026'):
         part=parts[period]
         if part.empty:continue
         prob_model=trained[model_name] if period == 'development_validation' else chosen
-        pp=prob_model.predict_proba(part[list(FEATURES)])[:,1]
+        pp=prob_model.predict_proba(part[columns])[:,1]
         sides=decide(pp,cutoff)
         met=evaluate_decisions(part,sides)
         reports[period]={**met,'samples':len(part),
