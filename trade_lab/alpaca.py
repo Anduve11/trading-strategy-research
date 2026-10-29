@@ -1,7 +1,8 @@
-"""Optional on-demand download of delayed IEX 1-minute ETF bars from Alpaca.
+"""On-demand historical ETF minute bars from Alpaca (SIP or IEX).
 
-Never write API credentials to disk. The free IEX feed is NOT consolidated SIP.
+The API key is only sent in authenticated request headers, never written to disk.
 """
+import time
 import requests
 import pandas as pd
 from .data import validate_bars
@@ -24,7 +25,21 @@ def fetch_bars(api_key: str, api_secret: str, start_date: str, end_date: str, fe
     rows=[]
     with requests.Session() as s:
         for page in range(150):
-            resp=s.get(API,headers=headers,params=params,timeout=35)
+            # Paid and free plans have rate limits. Back off instead of failing
+            # silently mid-study or keeping a partially fetched quarter.
+            for retry in range(5):
+                resp=s.get(API,headers=headers,params=params,timeout=35)
+                if resp.status_code not in (429, 500, 502, 503, 504):
+                    break
+                if retry == 4:
+                    break
+                delay = min(30, 2 ** retry)
+                if resp.status_code == 429:
+                    try:
+                        delay = min(30, max(1, int(float(resp.headers.get('Retry-After','3')))))
+                    except ValueError:
+                        delay = 3
+                time.sleep(delay)
             if not resp.ok:
                 msg = resp.text[:250]
                 raise RuntimeError(f'Alpaca market-data request failed ({resp.status_code}): {msg}')

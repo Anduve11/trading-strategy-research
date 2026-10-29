@@ -1,13 +1,11 @@
-# Market Edge — ETF Intraday Research Lab (v0.2)
-
-**[Open the live Streamlit dashboard](https://trading-strategy-research-m28fia7syvi6jd5ganw6ch.streamlit.app/)**
+# Market Edge — ETF Intraday Research Lab (v0.3)
 
 A working, **research-only** Streamlit dashboard for testing simple intraday strategies on **QQQ signals** and **TQQQ/SQQQ execution**. No orders can be sent to a broker.
 
 ## Browser-only deployment (free)
 
-1. Open the GitHub repository **[Anduve11/trading-strategy-research](https://github.com/Anduve11/trading-strategy-research)**. The source code is stored in this repository.
-2. Visit **https://share.streamlit.io** and sign in with GitHub. Authorize Streamlit to access the repository if prompted.
+1. Open the private GitHub repository **[Anduve11/trading-strategy-research](https://github.com/Anduve11/trading-strategy-research)**. The source code is stored in this repository.
+2. Visit **https://share.streamlit.io** and sign in with GitHub. Authorize Streamlit to access this private repository if prompted.
 3. Select **Create app**, choose repository `Anduve11/trading-strategy-research`, branch `main`, and entrypoint **`app.py`**. Deploy.
 4. Select **Synthetic demo** to check the UI works. **Synthetic results have no trading significance.**
 5. Select **Upload historical CSV** for real data, or **Alpaca historical ETF data**. The app now defaults to historical consolidated SIP data (more than 15 minutes old), which Alpaca Basic currently allows without a paid real-time plan. Select IEX only for comparison/debugging; its one-exchange coverage is not suitable for execution-quality research. API credentials are entered using masked in-session inputs and are *not saved to files*. Never commit credentials to GitHub.
@@ -92,3 +90,17 @@ requirements.txt        # Hosted app dependencies
 When loading bars, the dashboard shows rough full-session bar coverage and the percentage of minute timestamps where QQQ, TQQQ and SQQQ are all present. The count assumes 390-minute sessions; market half-days may make it misleading. The app warns when coverage or timestamp alignment falls below 98%. These are warnings, not proof of sound market data or executable fill prices. For real-money research we still need exchange calendars, quote-based spread estimates, and stricter missing-minute handling.
 
 **Security:** Never commit Alpaca credentials to GitHub. Rotate a key immediately if it appears in a screenshot, log, or chat.
+
+
+## Multi-year research lab (v0.3)
+
+To explore **real** intraday performance using your *own* Alpaca API credentials:
+
+1. Select **Alpaca historical ETF data**, feed **SIP**, and load a short recent period to check data quality.
+2. Expand **Multi-year strategy laboratory**. Try 2024–2026 first, then 2019–2026 once the shorter experiment works.
+3. Press **Run multi-year backtest**. The app requests consolidated SIP bars in quarters, calculates QQQ entry signals once per quarter, and simulates 16 predetermined entry/exit combinations on TQQQ/SQQQ. It carries each hypothetical account balance forward across quarters.
+4. Development years alone select the winning candidate; later validation and final holdout results are shown only for that preselected candidate. Export both result CSVs.
+
+Historical study partitions use early ~65% of calendar years for development, the next year for validation, and the remaining years as the final holdout. For 2019–2026 that means **2019–2023 development, 2024 validation, 2025–2026 final holdout**. For an initial 2024–2026 test, each of those years is its own period. Returns reflect the allocation percentage entered in the sidebar; 10% of equity invested per trade means that a +1% trade earns approximately +0.1% on the whole account before friction.
+
+**Important limitations:** Free Streamlit hosting is not a persistent research database and long runs can exhaust hosting/network resources. The app does not save historical bars when a session ends. Download resulting CSV reports. Minute bars do not reveal the order of intraminute stop/target hits; the simulator conservatively assumes stops fire first. SIP consolidated trades are not quotes or guaranteed executable fills. There is no live brokerage execution. Historical winning parameters are not proof of an ongoing trading edge. Never commit Alpaca API keys to GitHub or share them in screenshots.

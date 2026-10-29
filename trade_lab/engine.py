@@ -28,15 +28,17 @@ class Config:
             raise ValueError('Invalid allocation or initial capital.')
 
 
-def simulate(bars: pd.DataFrame, config: Config):
+def simulate(bars: pd.DataFrame, config: Config,
+             precomputed_signals: pd.DataFrame | None = None,
+             precomputed_prices: dict[str, pd.DataFrame] | None = None):
     """Returns trade log and equity timeline.
 
     Bars timestamped at start of one-minute interval. Signal seen after bar t
     completes; next bar OPEN executes entry. A stop and target in same bar is
     scored as STOP. Long-only TQQQ/SQQQ. One trade per session, if any.
     """
-    q = calculate_signals(bars, config.strategy)
-    bysym = {sym: x.set_index('timestamp').sort_index() for sym, x in bars.groupby('symbol')}
+    q = precomputed_signals if precomputed_signals is not None else calculate_signals(bars, config.strategy)
+    bysym = precomputed_prices if precomputed_prices is not None else {sym: x.set_index('timestamp').sort_index() for sym, x in bars.groupby('symbol')}
     qqq_index = bysym['QQQ'].index
     equity = config.initial_capital
     trades, timeline = [], []
@@ -60,32 +62,32 @@ def simulate(bars: pd.DataFrame, config: Config):
             entry = float(prices.at[entry_ts, 'open'])*(1 + config.slippage_bps_each_side/10000)
             stop = entry*(1-config.stop_pct/100)
             target = entry*(1+config.target_pct/100)
-            # Restrict data to today's eligible minute bars; no carrying overnight.
-            eligible = prices.loc[(prices.index >= entry_ts)].copy()
-            loc = eligible.index.tz_convert(ET)
-            eligible = eligible.loc[(loc.date == date) & (loc.time <= time(15,54))]
+            # Restrict to the exact trading day BEFORE checking exits. Avoid
+            # copying/scanning the remainder of the quarter on every trade.
+            day_end = (pd.Timestamp(date).tz_localize(ET) + pd.Timedelta(hours=15, minutes=54)).tz_convert('UTC')
+            eligible = prices.loc[entry_ts:day_end]
             if eligible.empty:
                 continue
-            exit_ts = None
-            exit_raw = None
-            reason = None
+            # Find the first minute in which a protective order is touched.
+            # If both stop and target occur in one OHLC bar, assume stop first.
+            lows = eligible['low'].to_numpy()
+            highs = eligible['high'].to_numpy()
+            is_stop = lows <= stop
+            is_target = highs >= target
+            hits = (is_stop | is_target).nonzero()[0]
             ambiguous = False
-            for bt, b in eligible.iterrows():
-                op, hi, lo = float(b['open']), float(b['high']), float(b['low'])
-                if lo <= stop and hi >= target:
-                    ambiguous = True
-                    exit_raw = min(op, stop) if bt != entry_ts else stop
-                    reason = 'stop (same-bar ambiguity)'
-                elif lo <= stop:
-                    exit_raw = min(op, stop) if bt != entry_ts else stop
-                    reason = 'stop'
-                elif hi >= target:
+            if len(hits):
+                pos = int(hits[0])
+                exit_ts = eligible.index[pos]
+                if is_stop[pos]:
+                    ambiguous = bool(is_target[pos])
+                    op = float(eligible['open'].iloc[pos])
+                    exit_raw = min(op, stop) if pos > 0 else stop
+                    reason = 'stop (same-bar ambiguity)' if ambiguous else 'stop'
+                else:
                     exit_raw = target  # no favorable gap improvement assumed
                     reason = 'target'
-                if reason:
-                    exit_ts = bt
-                    break
-            if exit_ts is None:
+            else:
                 exit_ts = eligible.index[-1]
                 exit_raw = float(eligible.iloc[-1]['close'])
                 reason = 'end-of-day'

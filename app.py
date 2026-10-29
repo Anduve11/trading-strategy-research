@@ -1,5 +1,6 @@
-"""Market Edge v0.1: no brokerage execution or live trading."""
+"""Market Edge v0.3: research-only ETF intraday experimentation."""
 from dataclasses import replace
+from datetime import date
 import io
 import pandas as pd
 import streamlit as st
@@ -30,6 +31,7 @@ except ImportError:
 from trade_lab.alpaca import fetch_bars
 from trade_lab.signals import STRATEGIES
 from trade_lab.engine import Config, simulate, summarize, split_by_session
+from trade_lab.research import run_study, select_development_winner, default_candidates, year_partitions
 
 st.set_page_config(page_title='Market Edge — Research Lab', page_icon='📈', layout='wide')
 st.title('Market Edge  |  Intraday ETF Research Lab')
@@ -103,6 +105,87 @@ if source == 'Alpaca historical ETF data' and st.session_state.get('alpaca_feed'
 config = Config(strategy=strategy,target_pct=target_pct,stop_pct=stop_pct,
                 slippage_bps_each_side=slip,fee_bps_each_side=fees,
                 allocation_pct=allocation,initial_capital=capital)
+
+# Historical research runs use bounded quarterly requests instead of loading
+# an eight-year raw minute-bar dataset in memory.
+with st.expander('🧪 Multi-year strategy laboratory (2019 onward)', expanded=False):
+    st.markdown('''**Research goal:** Test 16 predefined entry/exit configurations
+    using consolidated historical SIP data. Compound a hypothetical $10,000 account
+    while keeping development, validation, and final holdout years separate.
+
+    This is a research simulation, not live trading. Reviewing holdout results
+    repeatedly and modifying parameters invalidates the final test.''')
+    if source != 'Alpaca historical ETF data':
+        st.info('Switch Source to Alpaca historical ETF data to enable the multi-year lab.')
+    else:
+        last_complete = (pd.Timestamp.now(tz='America/New_York').normalize().replace(day=1) - pd.Timedelta(days=1)).date()
+        available_years = list(range(2019, last_complete.year+1))
+        left, right = st.columns(2)
+        first_year = left.selectbox('First calendar year', available_years,
+                                   index=max(0, len(available_years)-3))
+        end_years = [y for y in available_years if y >= first_year]
+        last_year = right.selectbox('Last calendar year', end_years, index=len(end_years)-1)
+        periods = year_partitions(first_year, last_year) if last_year-first_year+1 >= 3 else {}
+        if periods:
+            st.caption('Research partitions: ' + ', '.join(f'{y} {phase.lower()}' for y, phase in periods.items()))
+        st.caption('Suggested first run: 2024–2026. Then expand to 2019–2026. '
+                   'Large historical downloads may take minutes or run into free-hosting limits. '
+                   'Study output stays in your browser session; download the results.')
+        minimum = st.number_input('Minimum development trades', min_value=1,
+                                  max_value=1000, value=100, step=25)
+        max_dd = st.slider('Maximum development drawdown (%)', 5, 60, 20, 5)
+        st.caption(f'16 fixed candidates = 4 entry strategies × 4 take-profit/stop pairs. '
+                   f'Allocation {allocation}%, slippage {slip:g} bps and fees {fees:g} bps per side.')
+        if st.button('Run multi-year backtest — no real orders', type='primary', key='run_historical_lab'):
+            if last_year-first_year+1 < 3:
+                st.error('Choose at least three calendar years to separate development, validation, and holdout.')
+            elif not key or not secret:
+                st.error('Enter your current Alpaca API credentials into the masked fields first.')
+            else:
+                begin = date(first_year, 1, 1)
+                end = min(last_complete, date(last_year, 12, 31))
+                meter = st.progress(0)
+                status = st.empty()
+                def progress(done, total, label):
+                    meter.progress(min(1.0, done / total))
+                    status.caption(f'{done}/{total} historical chunks: {label}')
+                try:
+                    with st.spinner('Downloading quarterly SIP data and backtesting fixed candidates...'):
+                        study = run_study(lambda a, b: fetch_bars(key, secret, a, b, feed='sip'),
+                                          begin, end, config, candidates=default_candidates(),
+                                          progress=progress)
+                    st.session_state['long_study'] = study
+                    st.session_state['long_study_selection'] = (int(minimum), -float(max_dd))
+                    st.success('Historical research finished. These results use real historical data.')
+                except Exception as exc:
+                    st.error(f'Research stopped: {str(exc)[:300]}')
+        if 'long_study' in st.session_state:
+            study = st.session_state['long_study']
+            n, dd = st.session_state.get('long_study_selection', (100, -20.0))
+            selected = select_development_winner(study, n, dd)
+            st.divider()
+            st.subheader('Preselected winner — chosen ONLY on development results')
+            st.write('**Selected configuration:** ' + selected['winner'])
+            if not selected['qualified']:
+                st.warning('No candidate met the development minimum trades and drawdown criteria. '
+                           'This is an exploratory leader, not a qualified strategy.')
+            view = selected['selected'][['period','trades','win_rate','total_return','net_pnl',
+                                           'starting_equity','ending_equity','max_drawdown','profit_factor']]
+            st.dataframe(view, use_container_width=True, hide_index=True)
+            st.caption('Development determines the winner. Validation and final holdout are shown only '
+                       'for that selected configuration, and must not be used to retune it.')
+            st.markdown('**Development ranking of all 16 predefined candidates**')
+            st.dataframe(selected['development_table'][['candidate','trades','win_rate',
+                                                        'total_return','max_drawdown','profit_factor']],
+                         use_container_width=True, hide_index=True)
+            st.download_button('Download strategy research results CSV',
+                               study['results'].to_csv(index=False),
+                               file_name=f"market_edge_study_{study['start']}_{study['end']}.csv", mime='text/csv')
+            st.download_button('Download market-data coverage CSV',
+                               study['coverage'].to_csv(index=False),
+                               file_name='market_edge_coverage.csv', mime='text/csv')
+            st.caption('Caution: this is a bar-based simulation, not a brokerage fill model. '
+                       'Minute bars, slippage assumptions, corporate actions, and model selection all create uncertainty.')
 
 single, sweep = st.tabs(['Strategy backtest', 'Compare entry and exit strategies'])
 
