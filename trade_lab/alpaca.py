@@ -10,6 +10,8 @@ API = 'https://data.alpaca.markets/v2/stocks/bars'
 
 
 def fetch_bars(api_key: str, api_secret: str, start_date: str, end_date: str, feed: str = 'iex') -> pd.DataFrame:
+    if feed not in ('sip', 'iex'):
+        raise ValueError('Choose a supported data feed: SIP or IEX.')
     if not api_key or not api_secret:
         raise ValueError('Alpaca API key and secret are required.')
     start = pd.Timestamp(start_date).tz_localize('America/New_York').tz_convert('UTC').isoformat()
