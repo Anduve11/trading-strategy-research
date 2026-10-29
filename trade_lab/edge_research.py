@@ -56,7 +56,7 @@ def complete_session(group: pd.DataFrame) -> bool:
                for s in ('QQQ', 'TQQQ', 'SQQQ'))
 
 
-def extract_decisions(bars: pd.DataFrame, history: list[dict] | None = None, session_closes=None):
+def extract_decisions(bars: pd.DataFrame, history: list[dict] | None = None, session_closes=None, require_full_pair=True):
     """One row/day/decision, with completed-bar features and separate QQQ labels.
 
     A 09:59 bar completes at 10:00 ET; enter the 10:00 open. The 30-minute
@@ -79,15 +79,24 @@ def extract_decisions(bars: pd.DataFrame, history: list[dict] | None = None, ses
             excluded += 1
             continue
         q = q.reset_index(drop=True)
-        grid_ok = complete_session(whole)
+        grid_ok = complete_session(whole) if require_full_pair else True
         excluded += int(not grid_ok)
         if grid_ok and len(prior) >= 51:
+            # Reindex timestamps only. Missing PRICES remain NaN and any
+            # decision whose observed prefix/label endpoints are missing is skipped.
+            index = pd.date_range(pd.Timestamp(day).tz_localize(ET) + pd.Timedelta(hours=9, minutes=30), periods=390, freq='min').tz_convert('UTC')
+            observed_q = q
+            q = q.set_index('timestamp').reindex(index).rename_axis('timestamp').reset_index()
             closes = np.array([x['close'] for x in prior])
             rv = float(np.std(np.diff(np.log(closes[-21:])), ddof=1))
             for minute in DECISION_MINUTES:
                 hh, mm = map(int, minute.split(':'))
                 pos = hh * 60 + mm - (9 * 60 + 30)
                 early = q.iloc[:pos + 1]
+                if early[['open','high','low','close','volume']].isna().any().any():
+                    continue
+                if pd.isna(q.iloc[pos+1].open) or any(pd.isna(q.iloc[pos+h].close) for h in HORIZONS):
+                    continue
                 close = float(early.iloc[-1].close)
                 opening = float(q.iloc[0].open)
                 volume = float(early.volume.sum())
@@ -124,6 +133,7 @@ def extract_decisions(bars: pd.DataFrame, history: list[dict] | None = None, ses
                     row[f'qqq_forward_{horizon}m_pct'] = float(
                         100 * (q.iloc[pos + horizon].close / q.iloc[pos + 1].open - 1))
                 rows.append(row)
+            q = observed_q
         prior.append({'close': float(q.loc[q.timestamp.eq(last_minute), 'close'].iloc[0]), 'high': float(q.high.max()),
                       'low': float(q.low.min()),
                       'volumes': {minute: (float(q.loc[qminutes.to_numpy() <= minute, 'volume'].sum())

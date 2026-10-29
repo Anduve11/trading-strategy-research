@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'trade_lab/etf_universe.py'
+      - 'trade_lab/window_quality.py'
       - 'scripts/universe_research.py'
       - '.github/workflows/universe_research.yml'
 permissions:
@@ -20,7 +21,7 @@ jobs:
       fail-fast: false
       max-parallel: 2
       matrix:
-        pair: [nasdaq3, nasdaq2, sp500, smallcap, semiconductors]
+        pair: [nasdaq3, nasdaq2, sp500, smallcap, semiconductors, technology, financials, biotech]
     env:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}

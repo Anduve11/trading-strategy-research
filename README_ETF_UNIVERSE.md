@@ -1,4 +1,37 @@
-# Leveraged ETF comparison, batch v1
+# Leveraged ETF comparison, batches v1 and v2
+
+## Batch v2: observed execution windows and interpolation sensitivity
+
+The v1 full-day grid restriction is replaced by **complete observed entry-to-
+exit windows** for both bull and bear ETFs. The proxy must have every bar in
+the opening-to-decision feature prefix, actual label endpoints and a verified
+session close for lag history. Missing unrelated minutes no longer discard
+an otherwise usable trade. Missing proxy prices remain missing, never filled.
+Each timing/exit policy needs sufficient observations in every required year;
+one well-covered clock cannot hide missing data at another clock.
+
+At the user's request, a separate sensitivity analysis linearly interpolates
+at most two internal missing minutes per ETF from surrounding closes. Those
+rows have explicit flags, zero artificial volume and hypothetical point OHLC.
+Entry/exit timestamps, signals and training data are never interpolated.
+Future-bracketed interpolation is hindsight-based and cannot establish a
+tradable path or stop/limit fill. It is evaluated only after the model is
+selected and fitted using observed windows, on separate previously excluded
+2024+ dates; results never enter ranking or primary returns. Point OHLC cannot
+recover missing high/low extremes. A positive sensitivity result is not alpha.
+Immutable original archives are preserved, and both datasets are saved privately.
+
+Batch v2 adds three predeclared pairs: XLK/TECL/TECS (technology), XLF/FAS/FAZ
+(financials), and XBI/LABU/LABD (biotech). These are proxy-based experiments;
+historical benchmark changes remain a limitation. Issuer catalog:
+https://www.direxion.com/all-etfs.
+Eight pairs yield a maximum of 4,320 configurations including matched Nasdaq
+controls. Expansion is logged in discrete batches: keep all failures and do
+not keep adding tickers until a lucky historical winner appears. Any promising
+strategy still needs first-seen data/executable-fill checks and prospective
+predictions on genuinely new future sessions. No model submits orders.
+
+## Original batch v1 specification (preserved for comparison)
 
 Paper research only; no orders. Extends the same frozen 2019–September 2026
 research period to real ETF prices, not simulated leverage multiples.

@@ -29,6 +29,9 @@ PAIRS = {
     'smallcap': Pair('IWM', 'TNA', 'TZA', 3),
     'semiconductors': Pair('SOXX', 'SOXL', 'SOXS', 3,
         'SOXX is an imperfect sector proxy; fund and proxy benchmarks have changed historically.'),
+    'technology': Pair('XLK', 'TECL', 'TECS', 3),
+    'financials': Pair('XLF', 'FAS', 'FAZ', 3),
+    'biotech': Pair('XBI', 'LABU', 'LABD', 3),
 }
 
 
