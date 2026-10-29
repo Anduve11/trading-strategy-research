@@ -1,0 +1,15 @@
+# Market Edge machine-learning research (v0.7)
+
+This is **not live trading, a reliable edge, or a functioning sentiment strategy yet**.
+
+GitHub Action `ML research (archived prices only)` runs on this release, and on manual trigger. It reads **only the 93 private monthly ETF archives (2019-Jan to 2026-Sep)** using the existing encrypted GitHub Actions `SUPABASE_URL` and `SUPABASE_SECRET_KEY`; no Alpaca key or Streamlit password is needed.
+
+The new 09:50-ET feature extractor uses only data knowable at the session decision time: lagged 1-/5-/20-day QQQ returns, 20-day volatility, 50-day moving average, overnight gap, first 21 completed minute bars (09:30–09:50), VWAP deviation, volume vs prior 20 sessions, and weekday. Label: QQQ return sign from **09:51 open to 10:51 close**. Three classifiers (regularized logistic regression, shallow random forest, and gradient boosting) estimate the probability of a positive next-hour QQQ move. Four abstention thresholds (0.53, 0.57, 0.60, 0.65) decide buy TQQQ, buy SQQQ, or remain in cash. **TQQQ/SQQQ** P&L is evaluated independently on their actual archived one-minute bars, with one trade/day, +1.5% profit target, -1% stop, 5 bps adverse slippage per side, and 10% account allocation. A direction forecast is not the same as a profitable trade or an actual fill.
+
+Strict chronological splits: **2019–2022 fit**, **2023 candidate selection**, then refit selected family on **2019–2023 only** for **2024 historical evaluation**. 2025–Sep 2026 is explicitly an already-inspected retrospective diagnostic period; it is not fresh holdout data. Models are compared on realized account returns, drawdown, Brier calibration, and trading frequency. New prospective data must be collected for credible evidence of future performance.
+
+The workflow publishes only private numeric summaries, Top model/threshold combinations and diagnostics into the locked `market_edge_research_runs` Supabase table. It does not publish raw data or secrets and never submits broker orders.
+
+**News/sentiment scaffold:** `trade_lab/news.py` contains an Alpaca headline collector for major Nasdaq constituents (API published news history back to 2015), a strictly pre-decision, delay-buffered sentiment aggregator, and an **optional** FinBERT scorer. Historical news has **not yet been downloaded or scored**; consequently news is **not a feature in the baseline ML job** and there is no claim of measurable sentiment alpha. Separate archival, provider terms, first-seen timestamp validation, and performance comparison are needed before enabling it. Macroeconomic releases must similarly use release-time/vintage values (ALFRED), not revised final releases.
+
+To view the run: `Actions -> ML research (archived prices only)` and query the private Supabase `market_edge_research_runs` table using the connected Supabase app. Do not run unlimited parameter sweeps against the already-inspected 2025–2026 sample. No leverage or real-money automation is enabled by this code.

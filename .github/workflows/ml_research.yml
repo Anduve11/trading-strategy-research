@@ -1,0 +1,42 @@
+name: ML research (archived prices only)
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'trade_lab/ml.py'
+      - 'trade_lab/news.py'
+      - 'scripts/ml_research.py'
+      - 'tests/test_ml.py'
+      - 'requirements-ml.txt'
+      - '.github/workflows/ml_research.yml'
+permissions:
+  contents: read
+concurrency:
+  group: market-edge-ml-research
+  cancel-in-progress: false
+jobs:
+  ml-research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+      SUPABASE_BUCKET: market-edge-history
+    steps:
+      - name: Checkout trusted repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: requirements-ml.txt
+      - name: Install ML and research packages
+        run: python -m pip install -r requirements-ml.txt pytest
+      - name: Run automated tests
+        run: python -m pytest -q
+      - name: Run paper-only machine learning study
+        run: python scripts/ml_research.py
