@@ -1,6 +1,6 @@
 # Weekly Ten-Pick Model
 
-Separate Streamlit research app that loads five years of NFL and FBS schedules, results, historical lines, and available game metadata; compares machine-learning models; and automatically ranks the current slate against today's lines.
+Separate Streamlit research app that loads 2020–current NFL and FBS schedules, results, historical lines, and available game metadata; compares machine-learning models; and automatically ranks the current slate against current lines.
 
 ## Run locally
 
@@ -16,12 +16,12 @@ CFBD_API_KEY = "your CollegeFootballData token"
 ODDS_API_KEY = "your The Odds API key"
 ```
 
-Never commit secrets. Environment variables with the same names are also supported. Completed CFBD seasons are cached for 30 days, the active season for one day, and current odds for 15 minutes; keys and datasets are not written into the repository.
+Never commit secrets. Environment variables with the same names are also supported. The 2020–2025 CFBD FBS schedule and line history is stored as compressed CSVs in `data/sports_pool/`; the current college season and lines refresh from CFBD once per day. NFL schedule history comes from nflverse and current NFL lines refresh from The Odds API once per day when its key is configured. No weekly file upload is needed. The historical bundle contains exporter schedule rows joined to bookmaker quotes by CFBD game ID.
 
 ## What it does
 
-- Loads NFL history from nflverse and FBS schedules, results, opening/closing spreads, conference flags, and venue coordinates from CollegeFootballData (CFBD). CFBD line coverage varies by provider/game.
-- Fetches current NFL and college spreads and totals from The Odds API, caches them for up to 15 minutes between app reruns, and offers a manual immediate refresh.
+- Loads NFL history from nflverse and FBS schedules/results plus per-provider college opening/closing lines from the bundled CFBD exporter data. CFBD line coverage varies by provider/game; the bundle preserves provider quotes as well as a per-game median.
+- Fetches current college schedules and spreads from CFBD and current NFL spreads/totals from The Odds API, caches live quotes for up to one day between app reruns, and offers a manual immediate refresh. The Odds API is only queried for NFL, reducing use of its monthly quota.
 - Trains and compares twelve candidates: market-only and regularized logistic regression, random forest, extra trees, histogram gradient boosting, classic gradient boosting, and AdaBoost independently for NFL and FBS.
 - Builds point-in-time features for recent scoring and ATS form, current ATS streak and cumulative ATS rank, conference/division game status, Elo strength, recent momentum, points allowed, bye returns, rest, estimated travel distance, time-zone change, altitude change, venue dome, and opening-to-current line movement. Features use only earlier results; failed optional CFBD weather, coaches, and per-game box-score endpoints are not requested.
 - Selects a model by development-season Brier score, reserves the latest completed season as holdout, calibrates on development out-of-sample predictions, and ranks current games by calibrated cover probability plus cross-model agreement.
@@ -30,7 +30,7 @@ Never commit secrets. Environment variables with the same names are also support
 
 ## Data and methodology limits
 
-Historical closing lines do not reproduce your pool's 10 a.m. lines. CFBD supplies opening and closing spreads for many college games, but its opener is not guaranteed to be a Tuesday or pool-lock snapshot. nflverse's public schedule history provides NFL closing spreads. The Odds API's historical snapshots are a paid feature; they cover NCAAF and NFL back to June 2020, with 10-minute snapshots through August 2022 and 5-minute snapshots from September 2022 onward. A historical backfill and ongoing lock-time archive require that paid endpoint plus persistent storage. Weather forecasts and historical observations are excluded from model inputs until comparable point-in-time weather archives exist. Predictions are estimates, not a demonstrated edge.
+Historical closing lines do not reproduce your pool's 10 a.m. lines. CFBD supplies opening and closing spreads for many college games, but its opener is not guaranteed to be a Tuesday or pool-lock snapshot. nflverse's public schedule history provides NFL closing spreads. The Odds API's historical snapshots are a paid feature; they cover NCAAF and NFL back to June 2020. The app can update current college lines from CFBD and NFL lines from the existing Odds API key without weekly uploads, but exact 10 a.m. historical lock lines still require prospective timestamped collection. Weather forecasts and historical observations are excluded from model inputs until comparable point-in-time weather archives exist. Predictions are estimates, not a demonstrated edge.
 
 ## Timestamped odds archive
 
@@ -42,7 +42,7 @@ To backfill one Tuesday 10 a.m. Mountain snapshot per week for both leagues, use
 
 ## Next increments
 
-1. Add point-in-time NFL odds snapshots for exact 10 a.m. historical backtests if the Odds API plan supports it.
+1. Add point-in-time NFL odds snapshots for exact 10 a.m. historical backtests if a free or affordable source supports it.
 2. Add richer box-score efficiency and player/injury features with historical timestamps.
 3. Archive forecast-at-lock weather and evaluate its incremental value against a locked holdout.
 4. Evaluate the ten-pick strategy against market, favorite-only, and random baselines over a locked holdout.

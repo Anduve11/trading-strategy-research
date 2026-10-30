@@ -12,7 +12,7 @@ import pandas as pd
 import streamlit as st
 
 from sports_pool_model import (
-    FEATURES, add_pregame_features, archive_odds_snapshot, fetch_current_odds, fetch_forecast_weather, load_cfb_history,
+    FEATURES, add_pregame_features, archive_odds_snapshot, cfbd_current_quotes, fetch_current_odds, fetch_forecast_weather, load_cfb_history,
     _cfbd_venues, load_nfl_history, make_current_board, resolve_team_name, walk_forward_model,
 )
 
@@ -39,6 +39,10 @@ def cached_current_cfb_year(year: int, key: str, venues: pd.DataFrame, data_vers
 
 @st.cache_data(ttl=86400, show_spinner=False)
 def cached_cfb_history(start: int, end: int, key: str, data_version: str) -> pd.DataFrame:
+    if not key:
+        # The committed 2020–2025 archive remains useful for model history even
+        # when no live CFBD token is configured.
+        return load_cfb_history(start, min(end, 2025), "")
     venue_error=""
     try:venues=cached_cfb_venues(key)
     except Exception as exc:
@@ -52,7 +56,7 @@ def cached_cfb_history(start: int, end: int, key: str, data_version: str) -> pd.
     return pd.concat(parts,ignore_index=True) if parts else pd.DataFrame()
 
 
-@st.cache_data(ttl=900, show_spinner=False)
+@st.cache_data(ttl=86400, show_spinner=False)
 def cached_odds(key: str, sport: str, refresh_nonce: int) -> pd.DataFrame:
     return fetch_current_odds(key, [sport])
 
@@ -217,22 +221,24 @@ def main() -> None:
     st.caption("NFL + FBS · current market lines · walk-forward machine-learning rankings")
     odds_key=secret("ODDS_API_KEY")
     cfbd_key=secret("CFBD_API_KEY")
-    if not odds_key:
-        st.error("This Streamlit app cannot see ODDS_API_KEY. Add it under this app's Settings → Secrets, save, then reboot the app.")
+    if not odds_key and not cfbd_key:
+        st.error("Add CFBD_API_KEY to load the bundled college history and current college lines. ODDS_API_KEY is optional and only needed for live NFL odds.")
         st.stop()
 
     now=datetime.now(timezone.utc)
-    first_year=now.year-5
+    first_year=2020
     last_year=now.year
     refresh_nonce=st.session_state.get("refresh_nonce",0)
-    if st.button("Refresh current lines now",help="Bypasses the 15-minute odds cache."):
+    if st.button("Refresh current lines now",help="Bypasses the once-daily live odds cache."):
         st.session_state["refresh_nonce"]=int(time.time())
         refresh_nonce=st.session_state["refresh_nonce"]
         cached_odds.clear()
+        cached_current_cfb_year.clear()
+        cached_cfb_history.clear()
 
-    st.info(f"Loading six season labels ({first_year}–{last_year}): five prior seasons plus current-season results for live team form. NFL history is generally closing-line data; the college feed also supplies opening spreads when available. Current picks use today's bookmaker consensus.")
+    st.info(f"Loading football history from {first_year} through {last_year}. Bundled 2020–2025 college schedules and provider lines are joined by game ID; CFBD supplies the live college slate, and NFL quotes use the Odds API when its key is configured.")
 
-    with st.spinner("Loading five-year NFL and college history, fitting walk-forward models, and fetching this week's odds…"):
+    with st.spinner("Loading 2020–current football history, fitting walk-forward models, and refreshing current lines…"):
         try:
             nfl=cached_nfl_history(first_year,last_year)
         except Exception as exc:
@@ -240,14 +246,18 @@ def main() -> None:
             st.stop()
         cfb=pd.DataFrame()
         cfb_error=""
-        if cfbd_key:
-            try:
-                cfb=cached_cfb_history(first_year,last_year,cfbd_key,"cfbd_corefeeds_20261030_v3")
-            except Exception as exc:
-                cfb_error=str(exc)
+        try:
+            cfb=cached_cfb_history(first_year,last_year,cfbd_key,"bundled_cfb_20261030_v1")
+        except Exception as exc:
+            cfb_error=str(exc)
         odds_parts=[]
         odds_errors=[]
-        for sport in ["NFL","NCAAF"]:
+        # Use CFBD's current-season line endpoint for college so it does not
+        # spend Odds API quota. The Odds API is queried only for NFL.
+        if not cfb.empty:
+            college_quotes=cfbd_current_quotes(cfb)
+            if not college_quotes.empty:odds_parts.append(college_quotes)
+        for sport in (["NFL"] if odds_key else []):
             try:
                 part=cached_odds(odds_key,sport,refresh_nonce)
                 if not part.empty:odds_parts.append(part)
@@ -256,7 +266,7 @@ def main() -> None:
         odds=pd.concat(odds_parts,ignore_index=True) if odds_parts else pd.DataFrame()
 
     if not cfbd_key:
-        st.warning("CFBD_API_KEY is missing from this app's Secrets. NFL recommendations can still run; add the college data key to enable FBS history and rankings.")
+        st.warning("CFBD_API_KEY is missing. The bundled 2020–2025 college history is available, but current college schedules and lines cannot refresh; NFL can still run with ODDS_API_KEY.")
     elif cfb_error:
         if "rejected its key" in cfb_error.lower() or "401" in cfb_error:
             st.warning("CollegeFootballData returned 401. In this app's Settings → Secrets, set CFBD_API_KEY to your CollegeFootballData key (not the Odds API key). Enter only the key value; the app adds the Bearer header itself. Save and reboot the app.")
@@ -266,8 +276,10 @@ def main() -> None:
         notes=sorted({x for x in cfb.cfbd_data_notes.fillna("").astype(str) if x})
         if notes:st.warning("Some optional CFBD feeds failed; available data was retained: " + " | ".join(notes[:6]))
     for error in odds_errors:st.warning(error)
+    if not odds_key:
+        st.info("ODDS_API_KEY is not configured, so the live slate contains college games only. Add it to enable current NFL lines.")
     if odds.empty:
-        st.error("No current odds returned. Check the odds API key, plan, and league coverage.")
+        st.error("No current spread quotes were returned. Check CFBD_API_KEY for college lines and ODDS_API_KEY for NFL lines.")
         st.stop()
 
     archive_url=secret("SUPABASE_URL")
@@ -332,7 +344,7 @@ def main() -> None:
 
     latest=pd.to_datetime(odds.updated,errors="coerce",utc=True).max()
     last_seen=latest.strftime("%b %d, %I:%M %p UTC") if pd.notna(latest) else "provider time unavailable"
-    st.success(f"This week's slate ({week_label}): {len(board)} games with current spread quotes. Latest provider quote: {last_seen}. Quotes are cached for up to 15 minutes between app reruns; use Refresh current lines now for an immediate update.")
+    st.success(f"This week's slate ({week_label}): {len(board)} games with current spread quotes. Latest quote/retrieval time: {last_seen}. Current lines refresh at most once per day automatically while the app is used; use Refresh current lines now for an immediate update.")
     if archive_status:st.caption(archive_status)
     if forecast_error:st.caption(f"Kickoff forecast could not be loaded: {forecast_error}")
 
@@ -386,7 +398,7 @@ def main() -> None:
         if missing:
             st.markdown("#### Scheduled games without current spread quotes")
             st.dataframe(pd.DataFrame(missing),use_container_width=True,hide_index=True)
-        st.caption("Whole-number lines are shifted by 0.5 points away from zero (for example, -3 becomes -3.5 and +3 becomes +3.5). College opener and closing lines come from CFBD when supplied; nflverse provides NFL closing lines. These opening fields are not verified 10 a.m. lock snapshots. Current recommendations use the Odds API's current consensus spreads.")
+        st.caption("Whole-number lines are shifted by 0.5 points away from zero (for example, -3 becomes -3.5 and +3 becomes +3.5). College current and opening lines come from CFBD when supplied; NFL current lines use the Odds API. Historical opening/closing lines are not verified 10 a.m. lock snapshots.")
 
     with analysis_tab:
         st.subheader("Out-of-sample model comparison")

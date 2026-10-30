@@ -6,6 +6,7 @@ from typing import Any
 from hashlib import sha256
 import math
 import re
+from pathlib import Path
 import requests
 import numpy as np
 import pandas as pd
@@ -14,6 +15,7 @@ NFL_SCHEDULES = "https://github.com/nflverse/nflverse-data/releases/download/sch
 CFBD = "https://api.collegefootballdata.com"
 ODDS = "https://api.the-odds-api.com/v4"
 SPORT_KEYS = {"NFL": "americanfootball_nfl", "NCAAF": "americanfootball_ncaaf"}
+CFB_BUNDLE = Path(__file__).resolve().parent / "data" / "sports_pool" / "cfb_games_2020_2025.csv.gz"
 
 
 def api_get(url: str, params: dict[str, Any], token: str = "") -> Any:
@@ -219,13 +221,41 @@ def _cfbd_team_game_stats(year: int, token: str) -> pd.DataFrame:
 
 def load_cfb_history(start_year: int, end_year: int, token: str, venues: pd.DataFrame | None = None) -> pd.DataFrame:
     frames = []
-    venue_error=""
-    if venues is None:
-        try:venues=_cfbd_venues(token)
+    bundled_years: set[int] = set()
+    if CFB_BUNDLE.exists():
+        bundled = pd.read_csv(CFB_BUNDLE, low_memory=False, compression="gzip")
+        bundled["season"] = pd.to_numeric(bundled["season"], errors="coerce")
+        bundled = bundled[bundled.season.between(start_year, end_year)].copy()
+        if not bundled.empty:
+            bundled["game_date"] = pd.to_datetime(bundled.game_date, errors="coerce")
+            if "id" in bundled:
+                bundled["game_id"] = bundled.id.astype(str)
+            frames.append(bundled)
+            bundled_years = set(bundled.season.dropna().astype(int).unique())
+
+    # Historical exporter data is bundled with the app. Only request years
+    # that are not in the archive (normally the live season), reducing CFBD
+    # calls and avoiding reloading five years of unchanged data every day.
+    missing_years = [year for year in range(start_year, end_year + 1) if year not in bundled_years]
+    if missing_years and not token:
+        return pd.concat(frames, ignore_index=True, sort=False) if frames else pd.DataFrame()
+
+    venue_error = ""
+    if missing_years and venues is None:
+        try:
+            venues = _cfbd_venues(token)
         except Exception as exc:
-            venues=pd.DataFrame();venue_error=str(exc)
-    for year in range(start_year, end_year + 1):
-        games = _cfbd_games(year, token)
+            venues = pd.DataFrame()
+            venue_error = str(exc)
+    load_errors = []
+    for year in missing_years:
+        try:
+            games = _cfbd_games(year, token)
+        except Exception as exc:
+            if not frames:
+                raise
+            load_errors.append(f"CFBD {year} schedule unavailable: {exc}")
+            continue
         notes=[]
         if venue_error:notes.append(f"Venue metadata unavailable: {venue_error}")
         if "venue_id" in games and not venues.empty:
@@ -248,8 +278,44 @@ def load_cfb_history(start_year: int, end_year: int, token: str, venues: pd.Data
         games["cfbd_data_notes"]="; ".join(notes)
         frames.append(games)
     out=pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
+    if load_errors and not out.empty:
+        existing = out.get("cfbd_data_notes", pd.Series("", index=out.index)).fillna("").astype(str)
+        suffix = "; ".join(load_errors)
+        out["cfbd_data_notes"] = existing.map(lambda value: "; ".join(x for x in [value, suffix] if x))
     if "id" in out:out["game_id"]=out.id.astype(str)
     return out
+
+
+def cfbd_current_quotes(games: pd.DataFrame, now: pd.Timestamp | None = None) -> pd.DataFrame:
+    """Adapt CFBD's current-season game lines to the live-board quote format."""
+    if games.empty or "home_spread" not in games or "game_date" not in games:
+        return pd.DataFrame()
+    frame = games.copy()
+    frame["home_spread"] = pd.to_numeric(frame.home_spread, errors="coerce")
+    frame["game_date"] = pd.to_datetime(frame.game_date, errors="coerce", utc=True)
+    now = now or pd.Timestamp.now(tz="UTC")
+    frame = frame[frame.home_spread.notna() & frame.game_date.ge(now)].copy()
+    if frame.empty:
+        return pd.DataFrame()
+    rows = []
+    for game in frame.to_dict("records"):
+        gid = game.get("game_id", game.get("id"))
+        home, away = str(game.get("home_team", "")), str(game.get("away_team", ""))
+        line = float(game["home_spread"])
+        updated = pd.Timestamp.now(tz="UTC").isoformat()
+        start = pd.to_datetime(game["game_date"], utc=True).isoformat()
+        for team, point in ((home, line), (away, -line)):
+            rows.append({"sport": "NCAAF", "game_id": str(gid), "start_time": start,
+                         "home_team": home, "away_team": away, "book": "CFBD median",
+                         "updated": updated, "market": "spreads", "name": team,
+                         "point": point, "price": np.nan})
+        total = pd.to_numeric(pd.Series([game.get("total_line")]), errors="coerce").iloc[0]
+        if pd.notna(total):
+            rows.append({"sport": "NCAAF", "game_id": str(gid), "start_time": start,
+                         "home_team": home, "away_team": away, "book": "CFBD median",
+                         "updated": updated, "market": "totals", "name": "Over",
+                         "point": float(total), "price": np.nan})
+    return pd.DataFrame(rows)
 
 
 def half_line(value: Any) -> float:
