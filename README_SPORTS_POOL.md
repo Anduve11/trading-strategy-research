@@ -21,7 +21,7 @@ Never commit secrets. Environment variables with the same names are also support
 ## What it does
 
 - Loads NFL history from nflverse and FBS schedules, results, opening/closing spreads, conference flags, and venue coordinates from CollegeFootballData (CFBD). CFBD line coverage varies by provider/game.
-- Refreshes current NFL and college spreads and totals from The Odds API every 15 minutes; the dashboard can force an immediate refresh.
+- Fetches current NFL and college spreads and totals from The Odds API, caches them for up to 15 minutes between app reruns, and offers a manual immediate refresh.
 - Trains and compares twelve candidates: market-only and regularized logistic regression, random forest, extra trees, histogram gradient boosting, classic gradient boosting, and AdaBoost independently for NFL and FBS.
 - Builds point-in-time features for recent scoring and ATS form, current ATS streak and cumulative ATS rank, conference/division game status, Elo strength, recent momentum, points allowed, bye returns, rest, estimated travel distance, time-zone change, altitude change, venue dome, and opening-to-current line movement. Features use only earlier results; failed optional CFBD weather, coaches, and per-game box-score endpoints are not requested.
 - Selects a model by development-season Brier score, reserves the latest completed season as holdout, calibrates on development out-of-sample predictions, and ranks current games by calibrated cover probability plus cross-model agreement.
