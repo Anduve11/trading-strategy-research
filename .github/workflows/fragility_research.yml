@@ -1,0 +1,39 @@
+name: Frozen strategy fragility diagnostics (paper-only)
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['trade_lab/fragility.py', 'scripts/fragility_research.py', '.github/workflows/fragility_research.yml']
+permissions:
+  contents: read
+concurrency:
+  group: market-edge-fragility-v1
+  cancel-in-progress: false
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        pair: [semiconductors2, smallcap, technology, nasdaq3, nasdaq2, sp500, semiconductors, financials, biotech, sp500_2, dow2, dow3, smallcap2, financials2, realestate2, gold2, treasury2, treasury3]
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+      ALPACA_KEY_ID: ${{ secrets.ALPACA_KEY_ID }}
+      ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
+      OMP_NUM_THREADS: '1'
+      OPENBLAS_NUM_THREADS: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: requirements-ml.txt
+      - run: python -m pip install -r requirements-ml.txt pytest
+      - run: python -m pytest -q
+      - run: python scripts/fragility_research.py --pair ${{ matrix.pair }}
