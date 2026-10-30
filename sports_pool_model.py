@@ -19,9 +19,9 @@ def api_get(url: str, params: dict[str, Any], token: str = "") -> Any:
     headers = {"Authorization": f"Bearer {token}"} if token else {}
     r = requests.get(url, params=params, headers=headers, timeout=45)
     if r.status_code == 401:
-        raise RuntimeError("The API rejected its key. Check this Streamlit app's Secrets settings.")
+        raise RuntimeError(f"{r.url.split('?')[0]} returned HTTP 401 Unauthorized.")
     if r.status_code == 429:
-        raise RuntimeError("The API rate limit was reached. Wait a bit, then refresh.")
+        raise RuntimeError(f"{r.url.split('?')[0]} returned HTTP 429 (rate limit).")
     r.raise_for_status()
     return r.json()
 
@@ -188,9 +188,15 @@ def _cfbd_coaches(year: int, token: str) -> pd.DataFrame:
 
 def load_cfb_history(start_year: int, end_year: int, token: str, venues: pd.DataFrame | None = None) -> pd.DataFrame:
     frames = []
-    if venues is None:venues=_cfbd_venues(token)
+    venue_error=""
+    if venues is None:
+        try:venues=_cfbd_venues(token)
+        except Exception as exc:
+            venues=pd.DataFrame();venue_error=str(exc)
     for year in range(start_year, end_year + 1):
         games = _cfbd_games(year, token)
+        notes=[]
+        if venue_error:notes.append(f"Venue metadata unavailable: {venue_error}")
         if "venue_id" in games and not venues.empty:
             games=games.merge(venues,on="venue_id",how="left",suffixes=("","_venue"))
         if "venue" not in games:games["venue"]=games.get("venue_name","")
@@ -201,17 +207,19 @@ def load_cfb_history(start_year: int, end_year: int, token: str, venues: pd.Data
                 extra = loader(year, token)
                 if "id" in games and "id" in extra:
                     games = games.merge(extra, on="id", how="left", suffixes=("", "_extra"))
-            except requests.HTTPError:
-                # Optional supplemental source: preserve the game schedule/results.
-                continue
+            except Exception as exc:
+                # Keep valid schedules/results when a separate supplemental
+                # endpoint has different access, coverage, or rate limits.
+                notes.append(f"{loader.__name__}: {exc}")
         try:
             coaches=_cfbd_coaches(year,token)
             if not coaches.empty:
                 home=coaches.rename(columns={"school":"home_team","coach":"home_coach"})
                 away=coaches.rename(columns={"school":"away_team","coach":"away_coach"})
                 games=games.merge(home,on="home_team",how="left").merge(away,on="away_team",how="left")
-        except requests.HTTPError:
-            pass
+        except Exception as exc:
+            notes.append(f"Coach data unavailable: {exc}")
+        games["cfbd_data_notes"]="; ".join(notes)
         frames.append(games)
     out=pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
     if "id" in out:out["game_id"]=out.id.astype(str)
