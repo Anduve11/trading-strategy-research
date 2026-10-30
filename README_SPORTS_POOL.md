@@ -16,25 +16,25 @@ CFBD_API_KEY = "your CollegeFootballData token"
 ODDS_API_KEY = "your The Odds API key"
 ```
 
-Never commit secrets. Environment variables with the same names are also supported. The app caches source data for one day and current odds for 15 minutes; it does not write API keys or datasets into the repository.
+Never commit secrets. Environment variables with the same names are also supported. Completed CFBD seasons are cached for 30 days, the active season for one day, and current odds for 15 minutes; keys and datasets are not written into the repository.
 
 ## What it does
 
-- Loads NFL history from nflverse and FBS history, closing lines, game weather, and coach records from CollegeFootballData.
+- Loads NFL history from nflverse and FBS history, opening/closing spreads, game weather, coaches, and stadium coordinates from CollegeFootballData (CFBD). CFBD line coverage begins in 2013 and varies by provider/game.
 - Refreshes current NFL and college spreads and totals from The Odds API every 15 minutes; the dashboard can force an immediate refresh.
 - Trains and compares nine candidates: a market-only logistic baseline plus two settings each for regularized logistic regression, random forest, extra trees, and histogram gradient boosting independently for NFL and FBS.
-- Builds pregame features from line, total, home field, recent team scoring and win form, opponent scoring, rest, and previous coach performance. Rolling form uses completed games only.
+- Builds point-in-time features for last-two/last-three scoring and ATS form, recent momentum, points allowed, bye returns, rest, coach record/continuity, estimated travel distance, time-zone change, altitude change, venue dome, and line movement. Features use only prior completed games.
 - Selects a model by development-season Brier score, reserves the latest completed season as holdout, calibrates on development out-of-sample predictions, and ranks current games by calibrated cover probability plus cross-model agreement.
-- Displays the top ten recommendations and the full available slate with line timestamp, venue, coaches, and historical weather context where available.
+- Shows this week's slate, ranks the top ten, compares an available opener with today's line, adds a concise per-game explanation, and displays kickoff weather forecasts, venue, coaches, and travel context.
 - Moves integer spreads half a point away from zero (home/favorite -3 becomes -3.5; underdog +3 becomes +3.5).
 
 ## Data and methodology limits
 
-Historical close lines do not reproduce your pool's 10 a.m. lines. The Odds API historical snapshot endpoint is a paid feature, so this release uses historical close lines for model development and today's live consensus for the current slate. Its historical predictions are proxies until we backtest with archived 10 a.m. snapshots. Observed kickoff weather is shown as context and excluded from the pick model because it was not known at lock. Predictions are estimates, not a demonstrated edge.
+Historical close lines do not reproduce your pool's 10 a.m. lines. CFBD provides opening spreads for college games when available; nflverse's public schedule history provides NFL closing spreads. The Odds API's timestamped historical snapshots are a paid feature, so NFL opening/Tuesday lines are unavailable on a free plan. Weather forecasts and historical observations are shown as context but excluded from the model until comparable point-in-time historical forecasts can be archived; using observed kickoff weather to train would leak hindsight. Predictions are estimates, not a demonstrated edge.
 
 ## Next increments
 
-1. Add point-in-time odds history for exact 10 a.m. historical backtests if the API plan supports it.
-2. Add richer game-by-game box-score features and player/injury sources with historical timestamps.
-3. Add forecast-at-lock weather snapshots and cross-validate venue, coach tenure, and travel features.
+1. Add point-in-time NFL odds snapshots for exact 10 a.m. historical backtests if the Odds API plan supports it.
+2. Add richer box-score efficiency and player/injury features with historical timestamps.
+3. Archive forecast-at-lock weather and evaluate its incremental value against a locked holdout.
 4. Evaluate the ten-pick strategy against market, favorite-only, and random baselines over a locked holdout.
