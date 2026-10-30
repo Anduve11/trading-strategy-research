@@ -40,6 +40,7 @@ def load_nfl_history(start_year: int, end_year: int) -> pd.DataFrame:
     d["home_team"] = d.home_team.astype(str)
     d["away_team"] = d.away_team.astype(str)
     d["neutral_site"] = d.location.eq("neutral") if "location" in d else False
+    if "div_game" in d:d["conference_game"]=d.div_game.fillna(False).astype(bool)
     d["venue"] = d.get("stadium", "")
     d["temperature"] = pd.to_numeric(d.get("temp"), errors="coerce")
     d["wind"] = pd.to_numeric(d.get("wind"), errors="coerce")
@@ -87,6 +88,7 @@ def _cfbd_games(year: int, token: str) -> pd.DataFrame:
     d = pd.json_normalize(payload, sep="_").rename(columns={
         "homeTeam": "home_team", "awayTeam": "away_team", "homePoints": "home_score",
         "awayPoints": "away_score", "startDate": "game_date", "neutralSite": "neutral_site",
+        "conferenceGame":"conference_game",
     })
     # CFBD's current schema nests team and venue objects; legacy-compatible
     # flat names are still accepted so cached/exported payloads keep working.
@@ -188,7 +190,9 @@ def _cfbd_coaches(year: int, token: str) -> pd.DataFrame:
 
 def _cfbd_team_game_stats(year: int, token: str) -> pd.DataFrame:
     """Pivot CFBD per-game team box scores into one joined row per game."""
-    payload=api_get(f"{CFBD}/games/teams",{"year":year,"seasonType":"both","classification":"fbs"},token)
+    # This operation accepts year but not the games endpoint's classification
+    # and seasonType filters; passing them returns HTTP 400.
+    payload=api_get(f"{CFBD}/games/teams",{"year":year},token)
     rows=[]
     wanted={"totalYards":"yards","passingYards":"pass_yards","rushingYards":"rush_yards","turnovers":"turnovers","sacks":"sacks","thirdDownEff":"third_down_eff","redZoneEff":"red_zone_eff","firstDowns":"first_downs"}
     for item in payload:
@@ -243,6 +247,9 @@ def load_cfb_history(start_year: int, end_year: int, token: str, venues: pd.Data
                 coach_map={normalize_team(r.school):r.coach for r in coaches.itertuples() if str(r.coach).strip()}
                 games["home_coach"]=games.home_team.map(lambda x:coach_map.get(normalize_team(x),np.nan))
                 games["away_coach"]=games.away_team.map(lambda x:coach_map.get(normalize_team(x),np.nan))
+                if not games[["home_coach","away_coach"]].notna().any(axis=1).any():notes.append("Coach records returned but no team names matched the game feed")
+            else:
+                notes.append("No coach records returned for this season")
         except Exception as exc:
             notes.append(f"Coach data unavailable: {exc}")
         games["cfbd_data_notes"]="; ".join(notes)
@@ -286,6 +293,7 @@ def add_pregame_features(games: pd.DataFrame) -> pd.DataFrame:
     d["home_cover"]=((d.home_margin+d.home_line)>0).astype(float)
     d.loc[d.home_margin.isna()|d.home_line.isna(),"home_cover"]=np.nan
     d["line_move_home"]=d.home_line-d.home_line_open
+    if "conference_game" not in d:d["conference_game"]=np.nan
 
     def dist_miles(lat1: float,lon1: float,lat2: float,lon2: float) -> float:
         if not np.isfinite([lat1,lon1,lat2,lon2]).all():return np.nan
@@ -308,6 +316,10 @@ def add_pregame_features(games: pd.DataFrame) -> pd.DataFrame:
         elev=pd.to_numeric(pd.Series([g.get("venue_elevation")]),errors="coerce").iloc[0]
         pair=[]
         elo_pair={}
+        prior_ats_rates={}
+        for t,history in state.items():
+            vals=[x["ats_margin"] for x in history if np.isfinite(x.get("ats_margin",np.nan))]
+            if vals:prior_ats_rates[t]=float(np.mean(np.asarray(vals)>0))
         for side,opposite in (("home","away"),("away","home")):
             team=str(g.get(f"{side}_team",""));coach=_coach_name(g.get(f"{side}_coach",""))
             prior=[x for x in state.get(team,[]) if pd.isna(day) or x["date"]<day]
@@ -317,6 +329,7 @@ def add_pregame_features(games: pd.DataFrame) -> pd.DataFrame:
             points_for=np.array([x["pf"] for x in recent],dtype=float)
             points_against=np.array([x["pa"] for x in recent],dtype=float)
             ats=np.array([x["ats_margin"] for x in recent if np.isfinite(x["ats_margin"])],dtype=float)
+            all_ats=np.array([x["ats_margin"] for x in prior if np.isfinite(x.get("ats_margin",np.nan))],dtype=float)
             rest=max(0,(day-prior[-1]["date"]).days) if prior and pd.notna(day) else 7
             prior_this_season=[x for x in prior if season is not None and x["season"]==season]
             bye=bool(prior_this_season and 13<=((day-prior_this_season[-1]["date"]).days)<=24) if pd.notna(day) else False
@@ -357,7 +370,16 @@ def add_pregame_features(games: pd.DataFrame) -> pd.DataFrame:
                 "coach_win10":float(cwin),"coach_ats10":float(cats),"coach_games":float(len(coach_state.get(coach,[]))) if coach else 0.,
                 "coach_changed":float(bool(coach and last_coach.get(team) and last_coach[team]!=coach)),
                 "elo":float(elo),
+                "ats_cover5":float(np.mean(ats[-5:]>0)) if len(ats) else .5,
+                "ats_games5":float(min(5,len(ats))),
+                "ats_cover_season":float(np.mean(all_ats[np.array([x["season"]==season for x in prior if np.isfinite(x.get("ats_margin",np.nan))])]>0)) if season is not None and np.any(np.array([x["season"]==season for x in prior if np.isfinite(x.get("ats_margin",np.nan))])) else .5,
+                "ats_rank":float(1+sum(rate>np.mean(all_ats>0) for other,rate in prior_ats_rates.items() if other!=team)) if len(all_ats) else float(len(prior_ats_rates)+1),
             }
+            streak=0
+            for result in ats[::-1]:
+                if result<=0:break
+                streak+=1
+            stats["ats_streak"]=float(streak)
             # Rolling CFBD box-score efficiency. These are computed from each
             # team's prior games only; the current game's stats enter afterward.
             for key in ["yards","pass_yards","rush_yards","turnovers","sacks","third_down_eff","red_zone_eff"]:
@@ -409,7 +431,7 @@ def add_pregame_features(games: pd.DataFrame) -> pd.DataFrame:
     return d
 
 
-FEATURES = ["home_line","home_line_open","line_move_home","total_line","home_advantage","form_margin_diff","form_win_diff","points_allowed_diff","rest_diff","home_margin5","away_margin5","home_win5","away_win5","home_margin2","away_margin2","home_points_for2","away_points_for2","home_points_for3","away_points_for3","home_points_against2","away_points_against2","home_points_against3","away_points_against3","home_win_pct3","away_win_pct3","home_ats_margin3","away_ats_margin3","home_ats_cover3","away_ats_cover3","home_ats_games3","away_ats_games3","home_games_seen","away_games_seen","home_margin3","away_margin3","home_momentum","away_momentum","home_bye_return","away_bye_return","home_rest_days","away_rest_days","home_travel_miles","away_travel_miles","time_zone_shift_diff","altitude_change_diff","home_coach_win10","away_coach_win10","home_coach_ats10","away_coach_ats10","coach_form_diff","home_coach_games","away_coach_games","home_coach_changed","away_coach_changed","venue_dome_flag","home_elo","away_elo","elo_diff","home_yards3","away_yards3","home_pass_yards3","away_pass_yards3","home_rush_yards3","away_rush_yards3","home_turnovers3","away_turnovers3","home_sacks3","away_sacks3","home_third_down_eff3","away_third_down_eff3","home_red_zone_eff3","away_red_zone_eff3"]
+FEATURES = ["home_line","home_line_open","line_move_home","total_line","home_advantage","conference_game","form_margin_diff","form_win_diff","points_allowed_diff","rest_diff","home_margin5","away_margin5","home_win5","away_win5","home_margin2","away_margin2","home_points_for2","away_points_for2","home_points_for3","away_points_for3","home_points_against2","away_points_against2","home_points_against3","away_points_against3","home_win_pct3","away_win_pct3","home_ats_margin3","away_ats_margin3","home_ats_cover3","away_ats_cover3","home_ats_cover5","away_ats_cover5","home_ats_games5","away_ats_games5","home_ats_streak","away_ats_streak","home_ats_cover_season","away_ats_cover_season","home_ats_rank","away_ats_rank","home_games_seen","away_games_seen","home_margin3","away_margin3","home_momentum","away_momentum","home_bye_return","away_bye_return","home_rest_days","away_rest_days","home_travel_miles","away_travel_miles","time_zone_shift_diff","altitude_change_diff","home_coach_win10","away_coach_win10","home_coach_ats10","away_coach_ats10","coach_form_diff","home_coach_games","away_coach_games","home_coach_changed","away_coach_changed","venue_dome_flag","home_elo","away_elo","elo_diff","home_yards3","away_yards3","home_pass_yards3","away_pass_yards3","home_rush_yards3","away_rush_yards3","home_turnovers3","away_turnovers3","home_sacks3","away_sacks3","home_third_down_eff3","away_third_down_eff3","home_red_zone_eff3","away_red_zone_eff3"]
 MARKET_FEATURES=["home_line","home_line_open","line_move_home","total_line","home_advantage"]
 
 
@@ -609,7 +631,7 @@ def make_current_board(odds: pd.DataFrame, history: pd.DataFrame, model_bank: di
     hist_names=list(set(hist.home_team.astype(str))|set(hist.away_team.astype(str)))
     board["home_team_model"]=board.home_team.map(lambda n:resolve_team_name(n,hist_names,board.iloc[0].sport))
     board["away_team_model"]=board.away_team.map(lambda n:resolve_team_name(n,hist_names,board.iloc[0].sport))
-    meta_cols=[c for c in ["game_date","home_team","away_team","venue","home_coach","away_coach","temperature","wind","humidity","precipitation","home_spread_open","venue_lat","venue_lon","venue_elevation","venue_dome","city","state","timezone"] if c in hist]
+    meta_cols=[c for c in ["game_date","home_team","away_team","conference_game","venue","home_coach","away_coach","temperature","wind","humidity","precipitation","home_spread_open","venue_lat","venue_lon","venue_elevation","venue_dome","city","state","timezone"] if c in hist]
     if len(meta_cols)>3:
         meta=hist[meta_cols].dropna(subset=["game_date"]).copy()
         lookup=[]
@@ -619,11 +641,11 @@ def make_current_board(odds: pd.DataFrame, history: pd.DataFrame, model_bank: di
             q=q.assign(_delta=(pd.to_datetime(q.game_date)-pd.to_datetime(r.game_date)).abs().dt.total_seconds())
             best=q.sort_values("_delta").iloc[0]
             item={"game_id":r.game_id}
-            for c in ["venue","home_coach","away_coach","temperature","wind","humidity","precipitation","home_spread_open","venue_lat","venue_lon","venue_elevation","venue_dome","city","state","timezone"]:
+            for c in ["conference_game","venue","home_coach","away_coach","temperature","wind","humidity","precipitation","home_spread_open","venue_lat","venue_lon","venue_elevation","venue_dome","city","state","timezone"]:
                 if c in best:item[c]=best[c]
             lookup.append(item)
         board=board.merge(pd.DataFrame(lookup),on="game_id",how="left",suffixes=("","_meta"))
-    live_cols=["game_id","sport","season","game_date","home_team_model","away_team_model","home_line","home_spread_open","total_line","home_spread","home_score","away_score","neutral_site","venue_lat","venue_lon","venue_elevation","venue_dome"]
+    live_cols=["game_id","sport","season","game_date","home_team_model","away_team_model","home_line","home_spread_open","total_line","home_spread","home_score","away_score","neutral_site","conference_game","venue_lat","venue_lon","venue_elevation","venue_dome"]
     for c in live_cols:
         if c not in board:board[c]=np.nan
     if board.iloc[0].sport=="NFL":
