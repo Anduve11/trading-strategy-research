@@ -12,7 +12,7 @@ import pandas as pd
 import streamlit as st
 
 from sports_pool_model import (
-    FEATURES, add_pregame_features, fetch_current_odds, fetch_forecast_weather, load_cfb_history,
+    FEATURES, add_pregame_features, archive_odds_snapshot, fetch_current_odds, fetch_forecast_weather, load_cfb_history,
     _cfbd_venues, load_nfl_history, make_current_board, resolve_team_name, walk_forward_model,
 )
 
@@ -128,10 +128,10 @@ def pick_explanation(row: pd.Series) -> str:
     elif pd.notna(rest):parts.append(f"Rest: {rest:.0f} days since its previous game.")
     travel=pd.to_numeric(pd.Series([row.get(f"{side}_travel_miles")]),errors="coerce").iloc[0]
     if pd.notna(travel) and travel>0:parts.append(f"Estimated trip from its prior game site: {travel:,.0f} miles.")
-    coach=pd.to_numeric(pd.Series([row.get(f"{side}_coach_win10")]),errors="coerce").iloc[0]
-    coach_n=pd.to_numeric(pd.Series([row.get(f"{side}_coach_games")]),errors="coerce").iloc[0]
-    if pd.notna(coach) and pd.notna(coach_n) and coach_n>0:parts.append(f"Coach's prior-game win rate in the data: {coach:.0%}.")
-    if pd.notna(row.get("conference_game")):parts.append("Conference game." if bool(row.get("conference_game")) else "Nonconference game.")
+    if row.get("sport")=="NCAAF" and pd.notna(row.get("conference_game")):
+        parts.append("Conference game." if bool(row.get("conference_game")) else "Nonconference game.")
+    if row.get("sport")=="NFL" and pd.notna(row.get("division_game")):
+        parts.append("Division game." if bool(row.get("division_game")) else "Non-division game.")
     weather=row.get("forecast_summary")
     if isinstance(weather,str) and weather:parts.append(weather)
     return " ".join(parts)
@@ -242,7 +242,7 @@ def main() -> None:
         cfb_error=""
         if cfbd_key:
             try:
-                cfb=cached_cfb_history(first_year,last_year,cfbd_key,"cfbd_schema_20261030_v2")
+                cfb=cached_cfb_history(first_year,last_year,cfbd_key,"cfbd_corefeeds_20261030_v3")
             except Exception as exc:
                 cfb_error=str(exc)
         odds_parts=[]
@@ -270,6 +270,16 @@ def main() -> None:
         st.error("No current odds returned. Check the odds API key, plan, and league coverage.")
         st.stop()
 
+    archive_url=secret("SUPABASE_URL")
+    archive_key=secret("SUPABASE_SERVICE_ROLE_KEY")
+    archive_status=""
+    if archive_url and archive_key:
+        try:
+            archived=archive_odds_snapshot(odds,archive_url,archive_key)
+            archive_status=f"Saved {archived:,} bookmaker quotes to the persistent odds archive for the current 5-minute window."
+        except Exception as exc:
+            archive_status=f"Odds archive write failed: {exc}"
+
     histories={"NFL":nfl}
     if not cfb.empty:histories["NCAAF"]=cfb
     model_results={}
@@ -277,7 +287,7 @@ def main() -> None:
     with st.spinner("Training twelve model candidates and grading them with season-by-season holdouts…"):
         for sport,games in histories.items():
             try:
-                model_results[sport]=cached_model(sport,games,"features_20261030_v4")
+                model_results[sport]=cached_model(sport,games,"features_20261030_v5")
             except Exception as exc:
                 training_errors[sport]=str(exc)
 
@@ -323,6 +333,7 @@ def main() -> None:
     latest=pd.to_datetime(odds.updated,errors="coerce",utc=True).max()
     last_seen=latest.strftime("%b %d, %I:%M %p UTC") if pd.notna(latest) else "provider time unavailable"
     st.success(f"This week's slate ({week_label}): {len(board)} games with current spread quotes. Latest provider quote: {last_seen}. Lines refresh automatically every 15 minutes; use Refresh current lines now for an immediate update.")
+    if archive_status:st.caption(archive_status)
     if forecast_error:st.caption(f"Kickoff forecast could not be loaded: {forecast_error}")
 
     top=board.head(10).copy()
@@ -333,14 +344,17 @@ def main() -> None:
     top["Cover probability"]=top.best_cover_probability
     top["Model agreement"]=top.model_agreement
     top["ATS form"]=top.apply(lambda r:f"{float(r.get('home_ats_cover5',.5) if r.best_side==r.home_team else r.get('away_ats_cover5',.5)):.0%} last 5 · rank {int(r.get('home_ats_rank',0) if r.best_side==r.home_team else r.get('away_ats_rank',0))}",axis=1)
+    top["Game type"]=top.apply(lambda r:("Conference" if bool(r.conference_game) else "Nonconference") if r.sport=="NCAAF" and pd.notna(r.get("conference_game")) else (("Division" if bool(r.division_game) else "Non-division") if r.sport=="NFL" and pd.notna(r.get("division_game")) else "Unavailable"),axis=1)
     top["Confidence score"]=top.rank_score
-    cols=["Rank","sport","game_date","away_team","home_team","conference_game","Recommended pick","Open / Tuesday spread","Current line","ATS form","Cover probability","Model agreement"]
+    cols=["Rank","sport","game_date","away_team","home_team","Game type","Recommended pick","Open / Tuesday spread","Current line","ATS form","Cover probability","Model agreement"]
 
     top_tab,analysis_tab,data_tab=st.tabs(["Top 10 this week","Model performance","Data coverage"])
     with top_tab:
         st.subheader("Best ten games by predicted cover probability")
-        st.caption("Every game in the current Monday–Sunday slate with a current spread is ranked. Open / Tuesday lines are shown where a source provides them; the free Odds API plan does not provide its historical snapshots.")
+        st.caption("This is one combined NFL + FBS ranking, so a league can have no games in the top ten even when its model and current odds loaded. College openers come from CFBD when that exact game's opening spread is available; they are not guaranteed to be Tuesday 10 a.m. snapshots.")
         st.dataframe(top[cols].style.format({"Cover probability":"{:.1%}","Model agreement":"{:.0%}","Confidence score":"{:.3f}"}),use_container_width=True,hide_index=True)
+        if "NCAAF" in set(board.sport) and not (top.sport=="NCAAF").any():
+            st.info("College games are in the full ranked slate, but none currently place in the combined top ten. Check the all-games table and the NCAAF holdout metrics below to distinguish ranking from a data-load problem.")
         st.download_button("Download ranked slate",top[cols].to_csv(index=False),"weekly_top_10.csv","text/csv")
         st.markdown("#### Why each game ranks here")
         st.caption("These are observable model inputs and recent-game facts, not claims that any single factor caused the prediction.")
@@ -353,10 +367,11 @@ def main() -> None:
         rest["Recommended pick"]=rest.best_side
         rest["Open home spread"]=rest.home_line_open
         rest["Current home spread"]=rest.home_line
-        all_cols=["sport","game_date","away_team","home_team","conference_game","Open home spread","Current home spread","Recommended pick","best_cover_probability","model_agreement","home_ats_cover5","away_ats_cover5","home_ats_streak","away_ats_streak","home_ats_rank","away_ats_rank","home_elo","away_elo","total_line","forecast_summary","line_updated"]+[c for c in ["venue","home_coach","away_coach","home_travel_miles","away_travel_miles","home_bye_return","away_bye_return"] if c in rest]
+        rest["Game type"]=rest.apply(lambda r:("Conference" if bool(r.conference_game) else "Nonconference") if r.sport=="NCAAF" and pd.notna(r.get("conference_game")) else (("Division" if bool(r.division_game) else "Non-division") if r.sport=="NFL" and pd.notna(r.get("division_game")) else "Unavailable"),axis=1)
+        all_cols=["sport","game_date","away_team","home_team","Game type","Open home spread","Current home spread","Recommended pick","best_cover_probability","model_agreement","home_ats_cover5","away_ats_cover5","home_ats_streak","away_ats_streak","home_ats_rank","away_ats_rank","home_elo","away_elo","total_line","forecast_summary","line_updated"]+[c for c in ["venue","home_travel_miles","away_travel_miles","home_bye_return","away_bye_return"] if c in rest]
         st.dataframe(rest[all_cols].style.format({"best_cover_probability":"{:.1%}","model_agreement":"{:.0%}"}),use_container_width=True,hide_index=True)
         with st.expander("Top ten game details"):
-            detail_cols=[c for c in ["sport","game_date","away_team","home_team","conference_game","venue","home_coach","away_coach","temperature","wind","humidity","precipitation","forecast_summary","home_travel_miles","away_travel_miles","home_time_zone_shift","away_time_zone_shift","home_altitude_change","away_altitude_change","home_margin2","away_margin2","home_margin3","away_margin3","home_ats_cover3","away_ats_cover3","home_ats_cover5","away_ats_cover5","home_ats_streak","away_ats_streak","home_ats_rank","away_ats_rank","home_elo","away_elo","home_bye_return","away_bye_return"] if c in top]
+            detail_cols=[c for c in ["sport","game_date","away_team","home_team","conference_game","division_game","venue","forecast_summary","home_travel_miles","away_travel_miles","home_time_zone_shift","away_time_zone_shift","home_altitude_change","away_altitude_change","home_margin2","away_margin2","home_margin3","away_margin3","home_ats_cover3","away_ats_cover3","home_ats_cover5","away_ats_cover5","home_ats_streak","away_ats_streak","home_ats_rank","away_ats_rank","home_elo","away_elo","home_bye_return","away_bye_return"] if c in top]
             st.dataframe(top[detail_cols],use_container_width=True,hide_index=True)
         local_now=pd.Timestamp.now(tz="UTC").tz_convert(None)
         missing=[]
@@ -371,11 +386,11 @@ def main() -> None:
         if missing:
             st.markdown("#### Scheduled games without current spread quotes")
             st.dataframe(pd.DataFrame(missing),use_container_width=True,hide_index=True)
-        st.caption("Whole-number lines are shifted by 0.5 points away from zero (for example, -3 becomes -3.5 and +3 becomes +3.5). Opening lines come from CFBD's spreadOpen field for college games when available; nflverse provides NFL closing lines. NFL Tuesday snapshots require paid historical odds access. Current recommendations use current consensus spreads.")
+        st.caption("Whole-number lines are shifted by 0.5 points away from zero (for example, -3 becomes -3.5 and +3 becomes +3.5). College opener and closing lines come from CFBD when supplied; nflverse provides NFL closing lines. These opening fields are not verified 10 a.m. lock snapshots. Current recommendations use the Odds API's current consensus spreads.")
 
     with analysis_tab:
         st.subheader("Out-of-sample model comparison")
-        st.write("Twelve candidates include a market-only logistic baseline, regularized logistic models, random forest, extra trees, histogram gradient boosting, classic gradient boosting, and AdaBoost. Features now include prior-game CFBD box-score efficiency and a point-in-time Elo rating. Each test season is fit only on earlier seasons. Candidate selection uses development seasons; the latest complete season is reserved as the holdout.")
+        st.write("Twelve candidates include a market-only logistic baseline, regularized logistic models, random forest, extra trees, histogram gradient boosting, classic gradient boosting, and AdaBoost. Features include opening-to-current line movement, recent scoring and ATS form, conference/division status, point-in-time Elo, rest, and travel. Each test season is fit only on earlier seasons. Candidate selection uses development seasons; the latest complete season is reserved as the holdout.")
         for sport,(_,pred,metrics,selected,fit) in model_results.items():
             st.markdown(f"#### {sport} · selected: **{selected}**")
             st.caption(f"Training games: {fit['history_rows']:,} · seasons: {', '.join(map(str,fit['seasons']))} · untouched holdout: {fit['holdout_season']}")
@@ -404,14 +419,15 @@ def main() -> None:
             spread=pd.to_numeric(g["home_spread"],errors="coerce") if "home_spread" in g else pd.Series(np.nan,index=g.index)
             opener=pd.to_numeric(g["home_spread_open"],errors="coerce") if "home_spread_open" in g else pd.Series(np.nan,index=g.index)
             venue=g["venue"] if "venue" in g else pd.Series(index=g.index,dtype=object)
-            weather=(g["temperature"].notna().sum() if "temperature" in g else 0)
-            coaches=(g[[c for c in ["home_coach","away_coach"] if c in g]].notna().any(axis=1).sum() if any(c in g for c in ["home_coach","away_coach"]) else 0)
-            box=(g["home_yards"].notna() & g["away_yards"].notna()).sum() if "home_yards" in g and "away_yards" in g else 0
             coords=(g["venue_lat"].notna() & g["venue_lon"].notna()).sum() if "venue_lat" in g and "venue_lon" in g else 0
-            coverage.append({"Sport":sport,"Schedule rows":len(g),"Completed games":int(g[["home_score","away_score"]].notna().all(axis=1).sum()),"Games with spread":int(spread.notna().sum()),"Games with opener":int(opener.notna().sum()),"Games with box score":int(box),"Games with venue":int(venue.notna().sum()),"Games with coordinates":int(coords),"Games with weather":int(weather),"Games with coach data":int(coaches),"Years":f"{int(g.season.min())}–{int(g.season.max())}"})
+            conf_count=int(g.conference_game.notna().sum()) if "conference_game" in g else 0
+            division_count=int(g.division_game.notna().sum()) if "division_game" in g else 0
+            coverage.append({"Sport":sport,"Schedule rows":len(g),"Completed games":int(g[["home_score","away_score"]].notna().all(axis=1).sum()),"Games with spread":int(spread.notna().sum()),"Games with opener":int(opener.notna().sum()),"Games with conference flag":conf_count,"Games with division flag":division_count,"Games with venue":int(venue.notna().sum()),"Games with coordinates":int(coords),"Years":f"{int(g.season.min())}–{int(g.season.max())}"})
         st.dataframe(pd.DataFrame(coverage),use_container_width=True,hide_index=True)
-        st.markdown("**Point-in-time rules:** last-two/last-three and rolling form, prior ATS results, coach form, rest, bye returns, travel miles, time-zone shift, and altitude change are built only from earlier completed games. Historical kickoff weather and current kickoff forecasts are shown as context but not used as model features: the historical weather is hindsight, and archived pregame forecasts are needed for a fair backtest.")
-        st.markdown("**Sources:** nflverse schedule history for NFL results/closing spreads/coaches/weather; CollegeFootballData for FBS schedules, opening and closing lines, weather, coaches, and venue coordinates; The Odds API for current bookmaker spreads and totals; Open-Meteo for live kickoff forecast context.")
+        st.markdown("**Point-in-time rules:** rolling scoring form, prior ATS results, rest, bye returns, travel miles, time-zone shift, and altitude change use only earlier completed games. Failed optional CFBD weather, coach, and per-game box-score requests have been removed. Weather forecasts are shown as context and excluded from historical model inputs.")
+        st.markdown("**Sources:** nflverse schedule history for NFL results and closing spreads; CollegeFootballData for FBS schedules, spread open/close fields, and venue coordinates; The Odds API for current bookmaker spreads and totals; Open-Meteo for live kickoff forecast context.")
+        if not (archive_url and archive_key):
+            st.info("To retain timestamped weekly line movement across Streamlit restarts, create the table from sports_pool_odds_schema.sql, then add SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY to this app's Secrets. The app will archive quotes as it fetches them; a refresh between 9:00 and 10:05 a.m. Mountain marks the pool-lock window.")
 
 
 if __name__=="__main__":
