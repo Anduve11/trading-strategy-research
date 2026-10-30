@@ -332,7 +332,7 @@ def main() -> None:
 
     latest=pd.to_datetime(odds.updated,errors="coerce",utc=True).max()
     last_seen=latest.strftime("%b %d, %I:%M %p UTC") if pd.notna(latest) else "provider time unavailable"
-    st.success(f"This week's slate ({week_label}): {len(board)} games with current spread quotes. Latest provider quote: {last_seen}. Lines refresh automatically every 15 minutes; use Refresh current lines now for an immediate update.")
+    st.success(f"This week's slate ({week_label}): {len(board)} games with current spread quotes. Latest provider quote: {last_seen}. Quotes are cached for up to 15 minutes between app reruns; use Refresh current lines now for an immediate update.")
     if archive_status:st.caption(archive_status)
     if forecast_error:st.caption(f"Kickoff forecast could not be loaded: {forecast_error}")
 
