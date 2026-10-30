@@ -287,7 +287,7 @@ def main() -> None:
     with st.spinner("Training twelve model candidates and grading them with season-by-season holdouts…"):
         for sport,games in histories.items():
             try:
-                model_results[sport]=cached_model(sport,games,"features_20261030_v5")
+                model_results[sport]=cached_model(sport,games,"features_20261030_v6")
             except Exception as exc:
                 training_errors[sport]=str(exc)
 
