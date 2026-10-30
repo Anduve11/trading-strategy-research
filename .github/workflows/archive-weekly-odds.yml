@@ -1,0 +1,37 @@
+name: Archive weekly pool lines
+
+on:
+  schedule:
+    # 10 a.m. America/Denver is 16:00 UTC during daylight time and 17:00 UTC
+    # during standard time. The script skips the off-season UTC schedule.
+    - cron: "0 16 * * 2"
+    - cron: "0 17 * * 2"
+  workflow_dispatch:
+    inputs:
+      force:
+        description: Capture immediately, outside the normal lock window
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install capture dependencies
+        run: python -m pip install pandas numpy requests
+      - name: Capture odds snapshot
+        env:
+          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          if [ "${{ inputs.force }}" = "true" ]; then
+            python scripts/capture_weekly_odds.py --force
+          else
+            python scripts/capture_weekly_odds.py
+          fi
