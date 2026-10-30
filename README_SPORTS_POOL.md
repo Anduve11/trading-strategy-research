@@ -36,6 +36,8 @@ Historical closing lines do not reproduce your pool's 10 a.m. lines. CFBD suppli
 
 The app can retain live bookmaker quotes in Supabase so they survive Streamlit restarts. Run `sports_pool_odds_schema.sql` once in the Supabase SQL Editor, then add `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` to this Streamlit app's Secrets. Keep the service-role key private. Quotes are deduplicated into five-minute snapshots; capture times from 9:55–10:05 a.m. Mountain are marked as the pool-lock window.
 
+The GitHub Actions workflow `Archive weekly pool lines` requests NFL and FBS odds every Tuesday at 10 a.m. Mountain and stores a timestamped snapshot without requiring Streamlit to be open. Add `ODDS_API_KEY`, `SUPABASE_URL`, and `SUPABASE_SERVICE_ROLE_KEY` under GitHub repository Settings → Secrets and variables → Actions. The workflow runs at both possible UTC times for daylight/standard time and skips the off-window run. GitHub may delay scheduled jobs; the stored capture timestamp shows the actual time.
+
 To backfill one Tuesday 10 a.m. Mountain snapshot per week for both leagues, use `scripts/backfill_odds_snapshots.py` with a paid historical-odds key and those Supabase credentials in local environment variables. Example: `python scripts/backfill_odds_snapshots.py --start 2021-01-01 --end 2026-10-30`. The script makes two historical API calls per week and requests spreads only, so check the paid plan's historical quota before running it. Stored snapshots are an auditable line archive; the model should use pool-lock labels only after there is consistent backfill coverage, rather than mixing lock-line results with closing-line results.
 
 ## Next increments
