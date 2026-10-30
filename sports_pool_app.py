@@ -108,7 +108,7 @@ def pick_explanation(row: pd.Series) -> str:
     side="home" if row.best_side==row.home_team else "away"
     other="away" if side=="home" else "home"
     other_team=row.away_team if side=="home" else row.home_team
-    parts=[f"The selected model estimates {row.best_cover_probability:.1%} ATS cover probability; {int(round(row.model_agreement*9))} of 9 models favor this side."]
+    parts=[f"The selected model estimates {row.best_cover_probability:.1%} ATS cover probability; {int(round(row.model_agreement*row.get('model_count',12)))} of {int(row.get('model_count',12))} models favor this side."]
     margin=pd.to_numeric(pd.Series([row.get(f"{side}_margin3")]),errors="coerce").iloc[0]
     opp_margin=pd.to_numeric(pd.Series([row.get(f"{other}_margin3")]),errors="coerce").iloc[0]
     games_seen=pd.to_numeric(pd.Series([row.get(f"{side}_games_seen")]),errors="coerce").iloc[0]
@@ -269,10 +269,10 @@ def main() -> None:
     if not cfb.empty:histories["NCAAF"]=cfb
     model_results={}
     training_errors={}
-    with st.spinner("Training nine model candidates and grading them with season-by-season holdouts…"):
+    with st.spinner("Training twelve model candidates and grading them with season-by-season holdouts…"):
         for sport,games in histories.items():
             try:
-                model_results[sport]=cached_model(sport,games,"features_20261030_v2")
+                model_results[sport]=cached_model(sport,games,"features_20261030_v3")
             except Exception as exc:
                 training_errors[sport]=str(exc)
 
@@ -369,7 +369,7 @@ def main() -> None:
 
     with analysis_tab:
         st.subheader("Out-of-sample model comparison")
-        st.write("Nine candidates include a market-only logistic baseline and two settings each for regularized logistic regression, random forest, extra trees, and histogram gradient boosting. Each test season is fit only on earlier seasons. Candidate selection uses development seasons; the latest complete season is reserved as the holdout.")
+        st.write("Twelve candidates include a market-only logistic baseline, regularized logistic models, random forest, extra trees, histogram gradient boosting, classic gradient boosting, and AdaBoost. Features now include prior-game CFBD box-score efficiency and a point-in-time Elo rating. Each test season is fit only on earlier seasons. Candidate selection uses development seasons; the latest complete season is reserved as the holdout.")
         for sport,(_,pred,metrics,selected,fit) in model_results.items():
             st.markdown(f"#### {sport} · selected: **{selected}**")
             st.caption(f"Training games: {fit['history_rows']:,} · seasons: {', '.join(map(str,fit['seasons']))} · untouched holdout: {fit['holdout_season']}")
@@ -396,10 +396,13 @@ def main() -> None:
         coverage=[]
         for sport,g in histories.items():
             spread=pd.to_numeric(g["home_spread"],errors="coerce") if "home_spread" in g else pd.Series(np.nan,index=g.index)
+            opener=pd.to_numeric(g["home_spread_open"],errors="coerce") if "home_spread_open" in g else pd.Series(np.nan,index=g.index)
             venue=g["venue"] if "venue" in g else pd.Series(index=g.index,dtype=object)
             weather=(g["temperature"].notna().sum() if "temperature" in g else 0)
             coaches=(g[[c for c in ["home_coach","away_coach"] if c in g]].notna().any(axis=1).sum() if any(c in g for c in ["home_coach","away_coach"]) else 0)
-            coverage.append({"Sport":sport,"Schedule rows":len(g),"Completed games":int(g[["home_score","away_score"]].notna().all(axis=1).sum()),"Games with spread":int(spread.notna().sum()),"Games with venue":int(venue.notna().sum()),"Games with weather":int(weather),"Games with coach data":int(coaches),"Years":f"{int(g.season.min())}–{int(g.season.max())}"})
+            box=(g["home_yards"].notna() & g["away_yards"].notna()).sum() if "home_yards" in g and "away_yards" in g else 0
+            coords=(g["venue_lat"].notna() & g["venue_lon"].notna()).sum() if "venue_lat" in g and "venue_lon" in g else 0
+            coverage.append({"Sport":sport,"Schedule rows":len(g),"Completed games":int(g[["home_score","away_score"]].notna().all(axis=1).sum()),"Games with spread":int(spread.notna().sum()),"Games with opener":int(opener.notna().sum()),"Games with box score":int(box),"Games with venue":int(venue.notna().sum()),"Games with coordinates":int(coords),"Games with weather":int(weather),"Games with coach data":int(coaches),"Years":f"{int(g.season.min())}–{int(g.season.max())}"})
         st.dataframe(pd.DataFrame(coverage),use_container_width=True,hide_index=True)
         st.markdown("**Point-in-time rules:** last-two/last-three and rolling form, prior ATS results, coach form, rest, bye returns, travel miles, time-zone shift, and altitude change are built only from earlier completed games. Historical kickoff weather and current kickoff forecasts are shown as context but not used as model features: the historical weather is hindsight, and archived pregame forecasts are needed for a fair backtest.")
         st.markdown("**Sources:** nflverse schedule history for NFL results/closing spreads/coaches/weather; CollegeFootballData for FBS schedules, opening and closing lines, weather, coaches, and venue coordinates; The Odds API for current bookmaker spreads and totals; Open-Meteo for live kickoff forecast context.")
