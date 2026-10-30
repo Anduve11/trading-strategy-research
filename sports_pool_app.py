@@ -59,7 +59,7 @@ def cached_forecasts(game_keys: tuple) -> pd.DataFrame:
 
 
 @st.cache_resource(show_spinner=False)
-def cached_model(sport: str, games: pd.DataFrame):
+def cached_model(sport: str, games: pd.DataFrame, feature_version: str):
     study=add_pregame_features(games)
     pred,metrics,selected,fit=walk_forward_model(study)
     return study,pred,metrics,selected,fit
@@ -251,7 +251,7 @@ def main() -> None:
     with st.spinner("Training nine model candidates and grading them with season-by-season holdouts…"):
         for sport,games in histories.items():
             try:
-                model_results[sport]=cached_model(sport,games)
+                model_results[sport]=cached_model(sport,games,"features_20261030_v2")
             except Exception as exc:
                 training_errors[sport]=str(exc)
 
