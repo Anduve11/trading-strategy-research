@@ -186,6 +186,32 @@ def _cfbd_coaches(year: int, token: str) -> pd.DataFrame:
     return d[[school,"coach"]].rename(columns={school:"school"})
 
 
+def _cfbd_team_game_stats(year: int, token: str) -> pd.DataFrame:
+    """Pivot CFBD per-game team box scores into one joined row per game."""
+    payload=api_get(f"{CFBD}/games/teams",{"year":year,"seasonType":"both","classification":"fbs"},token)
+    rows=[]
+    wanted={"totalYards":"yards","passingYards":"pass_yards","rushingYards":"rush_yards","turnovers":"turnovers","sacks":"sacks","thirdDownEff":"third_down_eff","redZoneEff":"red_zone_eff","firstDowns":"first_downs"}
+    for item in payload:
+        gid=item.get("gameId",item.get("id"))
+        for team in item.get("teams",[]) if isinstance(item.get("teams"),list) else [item]:
+            side=str(team.get("homeAway",team.get("home_away",""))).lower()
+            if side not in ("home","away"):continue
+            stats=team.get("stats",[])
+            if isinstance(stats,list):stats={str(s.get("category")):s.get("stat") for s in stats if isinstance(s,dict)}
+            row={"id":gid}
+            for source,target in wanted.items():
+                val=stats.get(source)
+                if isinstance(val,str) and "/" in val and target in ("third_down_eff","red_zone_eff"):
+                    try:
+                        made,att=map(float,val.split("/",1));val=made/att if att else np.nan
+                    except (TypeError,ValueError):val=np.nan
+                row[f"{side}_{target}"]=pd.to_numeric(pd.Series([val]),errors="coerce").iloc[0]
+            rows.append(row)
+    d=pd.DataFrame(rows)
+    if d.empty:return pd.DataFrame(columns=["id"])
+    return d.groupby("id",as_index=False).first()
+
+
 def load_cfb_history(start_year: int, end_year: int, token: str, venues: pd.DataFrame | None = None) -> pd.DataFrame:
     frames = []
     venue_error=""
@@ -202,7 +228,7 @@ def load_cfb_history(start_year: int, end_year: int, token: str, venues: pd.Data
         if "venue" not in games:games["venue"]=games.get("venue_name","")
         for c in ["venue_lat","venue_lon","venue_elevation","venue_dome","city","state","timezone"]:
             if c not in games:games[c]=np.nan
-        for loader in (_cfbd_lines, _cfbd_weather):
+        for loader in (_cfbd_lines, _cfbd_weather, _cfbd_team_game_stats):
             try:
                 extra = loader(year, token)
                 if "id" in games and "id" in extra:
@@ -214,9 +240,9 @@ def load_cfb_history(start_year: int, end_year: int, token: str, venues: pd.Data
         try:
             coaches=_cfbd_coaches(year,token)
             if not coaches.empty:
-                home=coaches.rename(columns={"school":"home_team","coach":"home_coach"})
-                away=coaches.rename(columns={"school":"away_team","coach":"away_coach"})
-                games=games.merge(home,on="home_team",how="left").merge(away,on="away_team",how="left")
+                coach_map={normalize_team(r.school):r.coach for r in coaches.itertuples() if str(r.coach).strip()}
+                games["home_coach"]=games.home_team.map(lambda x:coach_map.get(normalize_team(x),np.nan))
+                games["away_coach"]=games.away_team.map(lambda x:coach_map.get(normalize_team(x),np.nan))
         except Exception as exc:
             notes.append(f"Coach data unavailable: {exc}")
         games["cfbd_data_notes"]="; ".join(notes)
@@ -271,6 +297,7 @@ def add_pregame_features(games: pd.DataFrame) -> pd.DataFrame:
 
     state:dict[str,list[dict[str,Any]]]={}
     coach_state:dict[str,list[tuple[float,float]]]={}
+    elo_state:dict[str,list[tuple[pd.Timestamp,float]]]={}
     last_coach:dict[str,str]={}
     feature_rows=[]
     for _,g in d.iterrows():
@@ -280,6 +307,7 @@ def add_pregame_features(games: pd.DataFrame) -> pd.DataFrame:
         lon=pd.to_numeric(pd.Series([g.get("venue_lon")]),errors="coerce").iloc[0]
         elev=pd.to_numeric(pd.Series([g.get("venue_elevation")]),errors="coerce").iloc[0]
         pair=[]
+        elo_pair={}
         for side,opposite in (("home","away"),("away","home")):
             team=str(g.get(f"{side}_team",""));coach=_coach_name(g.get(f"{side}_coach",""))
             prior=[x for x in state.get(team,[]) if pd.isna(day) or x["date"]<day]
@@ -296,6 +324,11 @@ def add_pregame_features(games: pd.DataFrame) -> pd.DataFrame:
             cwin=np.mean([x[0] for x in cp]) if cp else .5
             cats=np.mean([x[1] for x in cp]) if cp else 0.
             last=prior[-1] if prior else {}
+            prior_elo=[x for x in elo_state.get(team,[]) if pd.isna(day) or x[0]<day]
+            elo=prior_elo[-1][1] if prior_elo else 1500.
+            if prior_elo and season is not None and int(prior_elo[-1][0].year)!=season:
+                elo=1500.+.75*(elo-1500.)
+            elo_pair[side]=float(elo)
             travel=dist_miles(last.get("lat",np.nan),last.get("lon",np.nan),lat,lon) if last else np.nan
             tz_shift=(lon-last.get("lon",lon))/15. if last and np.isfinite(lon) and np.isfinite(last.get("lon",np.nan)) else np.nan
             alt_change=elev-last.get("elev",elev) if last and np.isfinite(elev) and np.isfinite(last.get("elev",np.nan)) else np.nan
@@ -323,7 +356,14 @@ def add_pregame_features(games: pd.DataFrame) -> pd.DataFrame:
                 "time_zone_shift":float(tz_shift),"altitude_change":float(alt_change),
                 "coach_win10":float(cwin),"coach_ats10":float(cats),"coach_games":float(len(coach_state.get(coach,[]))) if coach else 0.,
                 "coach_changed":float(bool(coach and last_coach.get(team) and last_coach[team]!=coach)),
+                "elo":float(elo),
             }
+            # Rolling CFBD box-score efficiency. These are computed from each
+            # team's prior games only; the current game's stats enter afterward.
+            for key in ["yards","pass_yards","rush_yards","turnovers","sacks","third_down_eff","red_zone_eff"]:
+                vals=np.array([pd.to_numeric(pd.Series([x.get(key,np.nan)]),errors="coerce").iloc[0] for x in recent],dtype=float)
+                vals=vals[np.isfinite(vals)]
+                stats[f"{key}3"]=float(np.mean(vals[-3:])) if len(vals) else np.nan
             pair.append(stats)
         feature_rows.append(pair)
         hs,as_=g.get("home_score"),g.get("away_score")
@@ -337,15 +377,26 @@ def add_pregame_features(games: pd.DataFrame) -> pd.DataFrame:
             ):
                 coach=_coach_name(g.get(f"{side}_coach",""))
                 record={"date":day,"season":season,"pf":pf,"pa":pa,"margin":margin,"win":win,"ats_margin":ats_margin,"lat":lat,"lon":lon,"elev":elev}
+                for key in ["yards","pass_yards","rush_yards","turnovers","sacks","third_down_eff","red_zone_eff"]:
+                    record[key]=pd.to_numeric(pd.Series([g.get(f"{side}_{key}",np.nan)]),errors="coerce").iloc[0]
                 state.setdefault(team,[]).append(record)
                 if coach:
                     coach_state.setdefault(coach,[]).append((win,ats_margin if np.isfinite(ats_margin) else 0.))
                     last_coach[team]=coach
+            # Append Elo after deriving features. The strict date filter above
+            # prevents games on the same day from leaking results into one another.
+            expected=1./(1.+10.**((elo_pair["away"]-elo_pair["home"]-55.)/400.))
+            actual=float(hs>as_)+.5*float(hs==as_)
+            mov=float(hs-as_)
+            k=20.*np.log1p(abs(mov))/np.log1p(14.)
+            delta=k*(actual-expected)
+            elo_state.setdefault(home,[]).append((day,elo_pair["home"]+delta))
+            elo_state.setdefault(away,[]).append((day,elo_pair["away"]-delta))
     metrics=list(feature_rows[0][0]) if feature_rows else []
     for metric in metrics:
         d[f"home_{metric}"]=[p[0][metric] for p in feature_rows]
         d[f"away_{metric}"]=[p[1][metric] for p in feature_rows]
-    for metric in ["margin5","win5","margin2","margin3","win_pct3","ats_cover3","momentum","travel_miles","time_zone_shift","rest_days","bye_return","coach_win10","coach_ats10","altitude_change"]:
+    for metric in ["margin5","win5","margin2","margin3","win_pct3","ats_cover3","momentum","travel_miles","time_zone_shift","rest_days","bye_return","coach_win10","coach_ats10","altitude_change","elo"]:
         d[f"{metric}_diff"]=d[f"home_{metric}"]-d[f"away_{metric}"]
     d["form_margin_diff"]=d.margin5_diff
     d["form_win_diff"]=d.win5_diff
@@ -358,12 +409,12 @@ def add_pregame_features(games: pd.DataFrame) -> pd.DataFrame:
     return d
 
 
-FEATURES = ["home_line","home_line_open","line_move_home","total_line","home_advantage","form_margin_diff","form_win_diff","points_allowed_diff","rest_diff","home_margin5","away_margin5","home_win5","away_win5","home_margin2","away_margin2","home_points_for2","away_points_for2","home_points_for3","away_points_for3","home_points_against2","away_points_against2","home_points_against3","away_points_against3","home_win_pct3","away_win_pct3","home_ats_margin3","away_ats_margin3","home_ats_cover3","away_ats_cover3","home_ats_games3","away_ats_games3","home_games_seen","away_games_seen","home_margin3","away_margin3","home_momentum","away_momentum","home_bye_return","away_bye_return","home_rest_days","away_rest_days","home_travel_miles","away_travel_miles","time_zone_shift_diff","altitude_change_diff","home_coach_win10","away_coach_win10","home_coach_ats10","away_coach_ats10","coach_form_diff","home_coach_games","away_coach_games","home_coach_changed","away_coach_changed","venue_dome_flag"]
+FEATURES = ["home_line","home_line_open","line_move_home","total_line","home_advantage","form_margin_diff","form_win_diff","points_allowed_diff","rest_diff","home_margin5","away_margin5","home_win5","away_win5","home_margin2","away_margin2","home_points_for2","away_points_for2","home_points_for3","away_points_for3","home_points_against2","away_points_against2","home_points_against3","away_points_against3","home_win_pct3","away_win_pct3","home_ats_margin3","away_ats_margin3","home_ats_cover3","away_ats_cover3","home_ats_games3","away_ats_games3","home_games_seen","away_games_seen","home_margin3","away_margin3","home_momentum","away_momentum","home_bye_return","away_bye_return","home_rest_days","away_rest_days","home_travel_miles","away_travel_miles","time_zone_shift_diff","altitude_change_diff","home_coach_win10","away_coach_win10","home_coach_ats10","away_coach_ats10","coach_form_diff","home_coach_games","away_coach_games","home_coach_changed","away_coach_changed","venue_dome_flag","home_elo","away_elo","elo_diff","home_yards3","away_yards3","home_pass_yards3","away_pass_yards3","home_rush_yards3","away_rush_yards3","home_turnovers3","away_turnovers3","home_sacks3","away_sacks3","home_third_down_eff3","away_third_down_eff3","home_red_zone_eff3","away_red_zone_eff3"]
 MARKET_FEATURES=["home_line","home_line_open","line_move_home","total_line","home_advantage"]
 
 
 def walk_forward_model(study: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, str, dict[str, Any]]:
-    from sklearn.ensemble import ExtraTreesClassifier, HistGradientBoostingClassifier, RandomForestClassifier
+    from sklearn.ensemble import AdaBoostClassifier, ExtraTreesClassifier, GradientBoostingClassifier, HistGradientBoostingClassifier, RandomForestClassifier
     from sklearn.impute import SimpleImputer
     from sklearn.linear_model import LogisticRegression
     from sklearn.pipeline import make_pipeline
@@ -378,6 +429,9 @@ def walk_forward_model(study: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame,
         "Extra trees leaf=20": make_pipeline(SimpleImputer(strategy="median",keep_empty_features=True), ExtraTreesClassifier(n_estimators=200, min_samples_leaf=20, max_features=.8, class_weight="balanced", random_state=24, n_jobs=-1)),
         "Hist gradient leaves=6": make_pipeline(SimpleImputer(strategy="median",keep_empty_features=True), HistGradientBoostingClassifier(max_iter=140, learning_rate=.05, l2_regularization=2., max_leaf_nodes=6, random_state=31)),
         "Hist gradient leaves=12": make_pipeline(SimpleImputer(strategy="median",keep_empty_features=True), HistGradientBoostingClassifier(max_iter=140, learning_rate=.05, l2_regularization=2., max_leaf_nodes=12, random_state=32)),
+        "Gradient boost depth=1": make_pipeline(SimpleImputer(strategy="median",keep_empty_features=True), GradientBoostingClassifier(n_estimators=100,learning_rate=.03,max_depth=1,min_samples_leaf=12,random_state=41)),
+        "Gradient boost depth=2": make_pipeline(SimpleImputer(strategy="median",keep_empty_features=True), GradientBoostingClassifier(n_estimators=100,learning_rate=.03,max_depth=2,min_samples_leaf=12,random_state=42)),
+        "AdaBoost stumps": make_pipeline(SimpleImputer(strategy="median",keep_empty_features=True), AdaBoostClassifier(n_estimators=100,learning_rate=.03,random_state=43)),
     }
     feature_map={name:(MARKET_FEATURES if name=="Market-only logistic" else FEATURES) for name in models}
     d = study.dropna(subset=["home_cover", "home_line", "season"]).copy()
@@ -608,6 +662,7 @@ def make_current_board(odds: pd.DataFrame, history: pd.DataFrame, model_bank: di
     # Ranking currently uses probability + bookmaker agreement; market edge is included as a separate transparency field.
     sides=np.where(board.p_home_cover>=.5,"home","away")
     board["model_agreement"]=[float(np.mean([(p[i]>=.5)==(board.p_home_cover.iloc[i]>=.5) for p in probs])) for i in range(len(board))]
+    board["model_count"]=len(probs)
     board["selected_model_probability"]=[float(board.loc[i,f"p_home_{selected}"] if sides[i]=="home" else 1-board.loc[i,f"p_home_{selected}"]) for i in range(len(board))]
     board["rank_score"]=board.best_cover_probability+0.005*board.model_agreement
     return board.sort_values(["rank_score","line_updated"],ascending=[False,False]).reset_index(drop=True)
