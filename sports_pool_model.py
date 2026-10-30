@@ -1,0 +1,424 @@
+"""Data loading, point-in-time features, model selection, and slate ranking."""
+from __future__ import annotations
+
+from datetime import datetime, timezone
+from typing import Any
+import math
+import re
+import requests
+import numpy as np
+import pandas as pd
+
+NFL_SCHEDULES = "https://github.com/nflverse/nflverse-data/releases/download/schedules/games.csv"
+CFBD = "https://api.collegefootballdata.com"
+ODDS = "https://api.the-odds-api.com/v4"
+SPORT_KEYS = {"NFL": "americanfootball_nfl", "NCAAF": "americanfootball_ncaaf"}
+
+
+def api_get(url: str, params: dict[str, Any], token: str = "") -> Any:
+    headers = {"Authorization": f"Bearer {token}"} if token else {}
+    r = requests.get(url, params=params, headers=headers, timeout=45)
+    if r.status_code == 401:
+        raise RuntimeError("The API rejected its key. Check this Streamlit app's Secrets settings.")
+    if r.status_code == 429:
+        raise RuntimeError("The API rate limit was reached. Wait a bit, then refresh.")
+    r.raise_for_status()
+    return r.json()
+
+
+def load_nfl_history(start_year: int, end_year: int) -> pd.DataFrame:
+    d = pd.read_csv(NFL_SCHEDULES, low_memory=False)
+    d = d[d.season.between(start_year, end_year)].copy()
+    d["game_date"] = pd.to_datetime(d.gameday, errors="coerce")
+    d["sport"] = "NFL"
+    # nflverse uses positive values when the home team is favored. This model
+    # stores the handicap from the home team's perspective (favorite is negative).
+    d["home_spread"] = -pd.to_numeric(d.spread_line, errors="coerce")
+    d["total_line"] = pd.to_numeric(d.total_line, errors="coerce")
+    d["home_score"] = pd.to_numeric(d.home_score, errors="coerce")
+    d["away_score"] = pd.to_numeric(d.away_score, errors="coerce")
+    d["home_team"] = d.home_team.astype(str)
+    d["away_team"] = d.away_team.astype(str)
+    d["neutral_site"] = d.location.eq("neutral") if "location" in d else False
+    d["venue"] = d.get("stadium", "")
+    d["temperature"] = pd.to_numeric(d.get("temp"), errors="coerce")
+    d["wind"] = pd.to_numeric(d.get("wind"), errors="coerce")
+    d["home_coach"] = d.get("home_coach", "")
+    d["away_coach"] = d.get("away_coach", "")
+    return d
+
+
+def _cfbd_games(year: int, token: str) -> pd.DataFrame:
+    payload = api_get(f"{CFBD}/games", {"year": year, "seasonType": "both", "classification": "fbs"}, token)
+    d = pd.json_normalize(payload, sep="_").rename(columns={
+        "homeTeam": "home_team", "awayTeam": "away_team", "homePoints": "home_score",
+        "awayPoints": "away_score", "startDate": "game_date", "neutralSite": "neutral_site",
+    })
+    # CFBD score fields are occasionally returned under alternate names.
+    for dst,candidates in {"home_score":["homePoints","home_points","homeScore"],"away_score":["awayPoints","away_points","awayScore"],"game_date":["start_date","startTime","start_time"]}.items():
+        if dst not in d:
+            for src in candidates:
+                if src in d:
+                    d[dst]=d[src];break
+    d["season"] = year
+    d["sport"] = "NCAAF"
+    d["game_date"] = pd.to_datetime(d.get("game_date"), errors="coerce", utc=True).dt.tz_convert(None)
+    for c in ("home_score", "away_score"):
+        if c not in d: d[c] = np.nan
+        d[c] = pd.to_numeric(d[c], errors="coerce")
+    if "home_team" not in d:d["home_team"]=""
+    if "away_team" not in d:d["away_team"]=""
+    d["home_team"] = d["home_team"].astype(str)
+    d["away_team"] = d["away_team"].astype(str)
+    d["neutral_site"] = d.get("neutral_site", False)
+    d["venue"] = d.get("venue", "")
+    return d
+
+
+def _cfbd_lines(year: int, token: str) -> pd.DataFrame:
+    payload = api_get(f"{CFBD}/lines", {"year": year}, token)
+    rows = []
+    for game in payload:
+        quotes = game.get("lines") or []
+        vals = []
+        totals = []
+        for q in quotes:
+            try:
+                vals.append(float(q.get("spread")))
+            except (TypeError, ValueError):
+                pass
+            try:
+                totals.append(float(q.get("overUnder")))
+            except (TypeError, ValueError):
+                pass
+        if vals:
+            rows.append({"id": game.get("id"), "home_spread": float(np.median(vals)), "total_line": float(np.median(totals)) if totals else np.nan})
+    return pd.DataFrame(rows, columns=["id", "home_spread", "total_line"])
+
+
+def _cfbd_weather(year: int, token: str) -> pd.DataFrame:
+    payload = api_get(f"{CFBD}/games/weather", {"year": year}, token)
+    d = pd.json_normalize(payload, sep="_")
+    rename = {"temperature": "temperature", "windSpeed": "wind"}
+    d = d.rename(columns={k:v for k,v in rename.items() if k in d})
+    return d[[c for c in ["id", "temperature", "wind", "humidity", "precipitation", "snowfall"] if c in d]]
+
+
+def _cfbd_coaches(year: int, token: str) -> pd.DataFrame:
+    payload=api_get(f"{CFBD}/coaches",{"year":year},token)
+    d=pd.json_normalize(payload,sep="_")
+    school=next((c for c in ["school","team"] if c in d),None)
+    if not school:return pd.DataFrame(columns=["school","coach"])
+    first=next((c for c in ["firstName","first_name"] if c in d),None)
+    last=next((c for c in ["lastName","last_name"] if c in d),None)
+    d["coach"]=(d[first].fillna("") if first else "")+" "+(d[last].fillna("") if last else "")
+    d["coach"]=d.coach.str.strip()
+    if "games" in d:
+        d["games"]=pd.to_numeric(d.games,errors="coerce").fillna(0)
+        d=d.sort_values("games").drop_duplicates(school,keep="last")
+    else:d=d.drop_duplicates(school,keep="last")
+    return d[[school,"coach"]].rename(columns={school:"school"})
+
+
+def load_cfb_history(start_year: int, end_year: int, token: str) -> pd.DataFrame:
+    frames = []
+    for year in range(start_year, end_year + 1):
+        games = _cfbd_games(year, token)
+        for loader in (_cfbd_lines, _cfbd_weather):
+            try:
+                extra = loader(year, token)
+                if "id" in games and "id" in extra:
+                    games = games.merge(extra, on="id", how="left", suffixes=("", "_extra"))
+            except requests.HTTPError:
+                # Optional supplemental source: preserve the game schedule/results.
+                continue
+        try:
+            coaches=_cfbd_coaches(year,token)
+            if not coaches.empty:
+                home=coaches.rename(columns={"school":"home_team","coach":"home_coach"})
+                away=coaches.rename(columns={"school":"away_team","coach":"away_coach"})
+                games=games.merge(home,on="home_team",how="left").merge(away,on="away_team",how="left")
+        except requests.HTTPError:
+            pass
+        frames.append(games)
+    out=pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
+    if "id" in out:out["game_id"]=out.id.astype(str)
+    return out
+
+
+def half_line(value: Any) -> float:
+    try:
+        x = float(value)
+    except (TypeError, ValueError):
+        return np.nan
+    if not np.isfinite(x): return np.nan
+    if math.isclose(x % 1, 0, abs_tol=1e-9):
+        return x - 0.5 if x < 0 else x + 0.5
+    return x
+
+
+def _coach_name(value: Any) -> str:
+    return "" if value is None or pd.isna(value) else str(value).strip()
+
+
+def add_pregame_features(games: pd.DataFrame) -> pd.DataFrame:
+    """Build trailing team form from prior completed games only in linear time."""
+    d = games.copy().sort_values("game_date").reset_index(drop=True)
+    state: dict[str, list[tuple[pd.Timestamp,float,float,float]]] = {}
+    coach_state: dict[str,list[float]]={}
+    last_coach: dict[str,str]={}
+    feature_rows=[]
+    for _,g in d.iterrows():
+        day=pd.to_datetime(g.game_date,errors="coerce")
+        for side in ("home","away"):
+            team=str(g.get(f"{side}_team", ""))
+            coach=_coach_name(g.get(f"{side}_coach", ""))
+            prior=state.get(team,[])[-10:]
+            if prior:
+                pf=np.array([x[1] for x in prior]);pa=np.array([x[2] for x in prior]);wins=np.array([x[3] for x in prior])
+                margins=pf-pa
+                rest=max(0,(day-prior[-1][0]).days) if pd.notna(day) else 7
+                stats={"win5":float(wins[-5:].mean()),"margin5":float(margins[-5:].mean()),"points_for5":float(pf[-5:].mean()),"points_against5":float(pa[-5:].mean()),"win10":float(wins.mean()),"margin10":float(margins.mean()),"rest_days":float(min(rest,21))}
+            else:
+                stats={"win5":.5,"margin5":0.,"points_for5":21.,"points_against5":21.,"win10":.5,"margin10":0.,"rest_days":7.}
+            cprior=coach_state.get(coach,[])[-5:] if coach else []
+            stats["coach_win5"]=float(np.mean(cprior)) if cprior else .5
+            stats["coach_games"]=float(len(coach_state.get(coach,[]))) if coach else 0.
+            prev_coach=last_coach.get(team,"")
+            stats["coach_changed"]=float(bool(coach and prev_coach and coach!=prev_coach))
+            feature_rows.append(stats)
+        # Add this game's results only after both teams' pregame features are made.
+        hs,as_=g.get("home_score"),g.get("away_score")
+        if pd.notna(hs) and pd.notna(as_) and pd.notna(day):
+            home,away=str(g.home_team),str(g.away_team)
+            state.setdefault(home,[]).append((day,float(hs),float(as_),float(hs>as_)))
+            state.setdefault(away,[]).append((day,float(as_),float(hs),float(as_>hs)))
+            for team,side,win in ((home,"home",float(hs>as_)),(away,"away",float(as_>hs))):
+                coach=_coach_name(g.get(f"{side}_coach",""))
+                if coach:
+                    coach_state.setdefault(coach,[]).append(win)
+                    last_coach[team]=coach
+    for metric in ["win5","margin5","points_for5","points_against5","win10","margin10","rest_days"]:
+        d[f"home_{metric}"]=[x[metric] for x in feature_rows[0::2]]
+        d[f"away_{metric}"]=[x[metric] for x in feature_rows[1::2]]
+    for metric in ["coach_win5","coach_games","coach_changed"]:
+        d[f"home_{metric}"]=[x[metric] for x in feature_rows[0::2]]
+        d[f"away_{metric}"]=[x[metric] for x in feature_rows[1::2]]
+    d["form_margin_diff"] = d.home_margin5 - d.away_margin5
+    d["form_win_diff"] = d.home_win5 - d.away_win5
+    d["points_allowed_diff"] = d.away_points_against5 - d.home_points_against5
+    d["rest_diff"] = d.home_rest_days - d.away_rest_days
+    d["coach_form_diff"]=d.home_coach_win5-d.away_coach_win5
+    neutral=d["neutral_site"].fillna(False).astype(bool) if "neutral_site" in d else pd.Series(False,index=d.index)
+    d["home_advantage"] = (~neutral).astype(int)
+    d["home_line_raw"] = pd.to_numeric(d.get("home_spread"), errors="coerce")
+    d["home_line"] = d.home_line_raw.map(half_line)
+    d["total_line"] = pd.to_numeric(d.get("total_line"), errors="coerce")
+    d["home_margin"] = d.home_score - d.away_score
+    d["home_cover"] = ((d.home_margin + d.home_line) > 0).astype(float)
+    d.loc[d.home_margin.isna() | d.home_line.isna(), "home_cover"] = np.nan
+    d["season"] = pd.to_numeric(d.get("season"), errors="coerce")
+    return d
+
+
+FEATURES = ["home_line", "total_line", "home_advantage", "form_margin_diff", "form_win_diff", "points_allowed_diff", "rest_diff", "home_margin5", "away_margin5", "home_win5", "away_win5", "home_points_for5", "away_points_for5", "home_points_against5", "away_points_against5", "home_margin10", "away_margin10", "home_win10", "away_win10", "home_coach_win5", "away_coach_win5", "coach_form_diff", "home_coach_games", "away_coach_games", "home_coach_changed", "away_coach_changed"]
+MARKET_FEATURES=["home_line","total_line","home_advantage"]
+
+
+def walk_forward_model(study: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, str, dict[str, Any]]:
+    from sklearn.ensemble import ExtraTreesClassifier, HistGradientBoostingClassifier, RandomForestClassifier
+    from sklearn.impute import SimpleImputer
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.pipeline import make_pipeline
+    from sklearn.preprocessing import StandardScaler
+    models = {
+        "Market-only logistic": make_pipeline(SimpleImputer(strategy="median"), StandardScaler(), LogisticRegression(C=.2, max_iter=1200)),
+        "Logistic C=.05": make_pipeline(SimpleImputer(strategy="median"), StandardScaler(), LogisticRegression(C=.05, max_iter=1200)),
+        "Logistic C=.5": make_pipeline(SimpleImputer(strategy="median"), StandardScaler(), LogisticRegression(C=.5, max_iter=1200)),
+        "Random forest leaf=8": make_pipeline(SimpleImputer(strategy="median"), RandomForestClassifier(n_estimators=200, min_samples_leaf=8, max_features=.8, class_weight="balanced_subsample", random_state=17, n_jobs=-1)),
+        "Random forest leaf=20": make_pipeline(SimpleImputer(strategy="median"), RandomForestClassifier(n_estimators=200, min_samples_leaf=20, max_features=.8, class_weight="balanced_subsample", random_state=18, n_jobs=-1)),
+        "Extra trees leaf=8": make_pipeline(SimpleImputer(strategy="median"), ExtraTreesClassifier(n_estimators=200, min_samples_leaf=8, max_features=.8, class_weight="balanced", random_state=23, n_jobs=-1)),
+        "Extra trees leaf=20": make_pipeline(SimpleImputer(strategy="median"), ExtraTreesClassifier(n_estimators=200, min_samples_leaf=20, max_features=.8, class_weight="balanced", random_state=24, n_jobs=-1)),
+        "Hist gradient leaves=6": make_pipeline(SimpleImputer(strategy="median"), HistGradientBoostingClassifier(max_iter=140, learning_rate=.05, l2_regularization=2., max_leaf_nodes=6, random_state=31)),
+        "Hist gradient leaves=12": make_pipeline(SimpleImputer(strategy="median"), HistGradientBoostingClassifier(max_iter=140, learning_rate=.05, l2_regularization=2., max_leaf_nodes=12, random_state=32)),
+    }
+    feature_map={name:(MARKET_FEATURES if name=="Market-only logistic" else FEATURES) for name in models}
+    d = study.dropna(subset=["home_cover", "home_line", "season"]).copy()
+    years = sorted(d.season.astype(int).unique())
+    predictions = []
+    if len(years) < 3:
+        return pd.DataFrame(), pd.DataFrame(), "Not enough seasons", {}
+    min_train_years = 2
+    for year in years[min_train_years:]:
+        tr, te = d[d.season < year], d[d.season == year]
+        if len(tr) < 250 or te.empty: continue
+        for name, model in models.items():
+            m = model
+            cols=feature_map[name]
+            m.fit(tr[cols], tr.home_cover.astype(int))
+            p = m.predict_proba(te[cols])[:, 1]
+            out = te[["sport","season","week","game_date","home_team","away_team","home_line","home_margin","home_cover"]].copy()
+            out["model"] = name
+            out["p_home_cover"] = p
+            out["p_away_cover"] = 1-p
+            predictions.append(out)
+    if not predictions: return pd.DataFrame(), pd.DataFrame(), "No valid folds", {}
+    pred = pd.concat(predictions, ignore_index=True)
+    # Model choice uses development seasons only. The most recent season remains a holdout.
+    completed=[]
+    for yr,g in study.groupby("season"):
+        scheduled=g[["home_score","away_score"]].notna().all(axis=1).mean()
+        if scheduled>=.98:completed.append(int(yr))
+    holdout_year=max(completed) if completed else years[-1]
+    dev = pred[pred.season < holdout_year]
+    metrics = []
+    for name, g in pred.groupby("model"):
+        y = g.home_cover.astype(float).to_numpy()
+        p = np.clip(g.p_home_cover.to_numpy(), 1e-6, 1-1e-6)
+        h=g[g.season==holdout_year]
+        hy=h.home_cover.astype(float).to_numpy();hp=np.clip(h.p_home_cover.to_numpy(),1e-6,1-1e-6)
+        dg=g[g.season<holdout_year];dy=dg.home_cover.astype(float).to_numpy();dp=np.clip(dg.p_home_cover.to_numpy(),1e-6,1-1e-6)
+        metrics.append({"Model":name,"Development Brier":float(np.mean((dp-dy)**2)) if len(dg) else np.nan,"OOS games":len(g),"OOS accuracy":float(((p>=.5)==y).mean()),"OOS Brier":float(np.mean((p-y)**2)),"OOS log loss":float(-np.mean(y*np.log(p)+(1-y)*np.log(1-p))),"Holdout year":holdout_year,"Holdout games":len(h),"Holdout accuracy":float(((hp>=.5)==hy).mean()) if len(h) else np.nan,"Holdout Brier":float(np.mean((hp-hy)**2)) if len(h) else np.nan,"Holdout log loss":float(-np.mean(hy*np.log(hp)+(1-hy)*np.log(1-hp))) if len(h) else np.nan})
+    metric_df = pd.DataFrame(metrics).sort_values("Development Brier")
+    if dev.empty:
+        selected = metric_df.iloc[0]["Model"]
+    else:
+        scored=[]
+        for name,g in dev.groupby("model"):
+            y=g.home_cover.astype(float).to_numpy();p=np.clip(g.p_home_cover.to_numpy(),1e-6,1-1e-6)
+            scored.append((float(np.mean((p-y)**2)),name))
+        selected=sorted(scored)[0][1]
+    # Refit chosen model on all completed history for the current slate.
+    bank={}
+    for name,model in models.items():
+        model.fit(d[feature_map[name]],d.home_cover.astype(int))
+        bank[name]=model
+    dev_selected=pred[(pred.model==selected)&(pred.season<holdout_year)]
+    calibrator=None
+    if len(dev_selected)>=100 and dev_selected.home_cover.nunique()>1:
+        from sklearn.linear_model import LogisticRegression
+        raw=np.clip(dev_selected.p_home_cover.to_numpy(),1e-5,1-1e-5)
+        logit=np.log(raw/(1-raw)).reshape(-1,1)
+        calibrator=LogisticRegression(C=1.,max_iter=500).fit(logit,dev_selected.home_cover.astype(int))
+    return pred, metric_df, selected, {"models": bank, "calibrator":calibrator, "feature_columns": feature_map, "history_rows":len(d), "seasons":years, "holdout_season":holdout_year}
+
+
+def fetch_current_odds(api_key: str, sports: list[str]) -> pd.DataFrame:
+    rows=[]
+    for sport in sports:
+        payload=api_get(f"{ODDS}/sports/{SPORT_KEYS[sport]}/odds/", {"apiKey":api_key,"regions":"us","markets":"spreads,totals","oddsFormat":"american","dateFormat":"iso"})
+        for game in payload:
+            for book in game.get("bookmakers",[]):
+                for market in book.get("markets",[]):
+                    if market.get("key") not in ("spreads","totals"): continue
+                    for outcome in market.get("outcomes",[]):
+                        rows.append({"sport":sport,"game_id":game.get("id"),"start_time":game.get("commence_time"),"home_team":game.get("home_team"),"away_team":game.get("away_team"),"book":book.get("title"),"updated":book.get("last_update"),"market":market.get("key"),"name":outcome.get("name"),"point":outcome.get("point"),"price":outcome.get("price")})
+    return pd.DataFrame(rows)
+
+
+def normalize_team(value: Any) -> str:
+    s=re.sub(r"[^a-z0-9 ]"," ",str(value).lower())
+    s=re.sub(r"\b(university|college|the|of)\b"," ",s)
+    return " ".join(s.split())
+
+
+NFL_ALIAS={
+    "arizona cardinals":"ARI","atlanta falcons":"ATL","baltimore ravens":"BAL","buffalo bills":"BUF",
+    "carolina panthers":"CAR","chicago bears":"CHI","cincinnati bengals":"CIN","cleveland browns":"CLE",
+    "dallas cowboys":"DAL","denver broncos":"DEN","detroit lions":"DET","green bay packers":"GB",
+    "houston texans":"HOU","indianapolis colts":"IND","jacksonville jaguars":"JAX","kansas city chiefs":"KC",
+    "las vegas raiders":"LV","los angeles chargers":"LAC","los angeles rams":"LA","miami dolphins":"MIA",
+    "minnesota vikings":"MIN","new england patriots":"NE","new orleans saints":"NO","new york giants":"NYG",
+    "new york jets":"NYJ","philadelphia eagles":"PHI","pittsburgh steelers":"PIT","san francisco 49ers":"SF",
+    "seattle seahawks":"SEA","tampa bay buccaneers":"TB","tennessee titans":"TEN","washington commanders":"WAS",
+}
+
+
+def resolve_team_name(name: str, history_names: list[str], sport: str) -> str:
+    if sport=="NFL":
+        key=NFL_ALIAS.get(normalize_team(name))
+        if key and key in history_names:return key
+    normalized=normalize_team(name)
+    by_normalized={normalize_team(n):n for n in history_names}
+    if normalized in by_normalized:return by_normalized[normalized]
+    prefix=[n for n in history_names if normalize_team(n).startswith(normalized) or normalized.startswith(normalize_team(n))]
+    if prefix:return sorted(prefix,key=lambda n:len(normalize_team(n)),reverse=True)[0]
+    from difflib import get_close_matches
+    match=get_close_matches(normalized,list(by_normalized),n=1,cutoff=.68)
+    return by_normalized[match[0]] if match else name
+
+
+def make_current_board(odds: pd.DataFrame, history: pd.DataFrame, model_bank: dict[str,Any], selected: str, calibrator: Any = None, feature_map: dict[str,list[str]] | None = None) -> pd.DataFrame:
+    if odds.empty: return pd.DataFrame()
+    spread=odds[odds.market=="spreads"].copy()
+    totals=odds[odds.market=="totals"].copy()
+    rows=[]
+    for gid,g in spread.groupby("game_id"):
+        home,away=g.iloc[0].home_team,g.iloc[0].away_team
+        hp=pd.to_numeric(g.loc[g["name"]==home,"point"],errors="coerce").dropna()
+        ap=pd.to_numeric(g.loc[g["name"]==away,"point"],errors="coerce").dropna()
+        if hp.empty or ap.empty: continue
+        home_line=half_line(hp.median()); away_line=half_line(ap.median())
+        total=totals[(totals.game_id==gid)&(totals["name"]=="Over")].point
+        tot=float(pd.to_numeric(total,errors="coerce").median()) if not total.empty else np.nan
+        updated=pd.to_datetime(g.updated,errors="coerce",utc=True).max()
+        rows.append({"sport":g.iloc[0].sport,"game_id":gid,"start_time":g.iloc[0].start_time,"home_team":home,"away_team":away,"home_line":home_line,"away_line":away_line,"home_spread":home_line,"total_line":tot,"line_updated":updated,"home_score":np.nan,"away_score":np.nan,"neutral_site":False})
+    board=pd.DataFrame(rows)
+    if board.empty:return board
+    board["game_date"]=pd.to_datetime(board.start_time,errors="coerce",utc=True).dt.tz_convert(None)
+    board["season"]=board.game_date.dt.year
+    hist=history[history.sport==board.iloc[0].sport].copy()
+    hist_names=list(set(hist.home_team.astype(str))|set(hist.away_team.astype(str)))
+    board["home_team_model"]=board.home_team.map(lambda n:resolve_team_name(n,hist_names,board.iloc[0].sport))
+    board["away_team_model"]=board.away_team.map(lambda n:resolve_team_name(n,hist_names,board.iloc[0].sport))
+    meta_cols=[c for c in ["game_date","home_team","away_team","venue","home_coach","away_coach","temperature","wind","humidity","precipitation"] if c in hist]
+    if len(meta_cols)>3:
+        meta=hist[meta_cols].dropna(subset=["game_date"]).copy()
+        lookup=[]
+        for _,r in board.iterrows():
+            q=meta[(meta.home_team.astype(str)==r.home_team_model)&(meta.away_team.astype(str)==r.away_team_model)]
+            if q.empty:lookup.append({"game_id":r.game_id});continue
+            q=q.assign(_delta=(pd.to_datetime(q.game_date)-pd.to_datetime(r.game_date)).abs().dt.total_seconds())
+            best=q.sort_values("_delta").iloc[0]
+            item={"game_id":r.game_id}
+            for c in ["venue","home_coach","away_coach","temperature","wind","humidity","precipitation"]:
+                if c in best:item[c]=best[c]
+            lookup.append(item)
+        board=board.merge(pd.DataFrame(lookup),on="game_id",how="left",suffixes=("","_meta"))
+    live_cols=["game_id","sport","season","game_date","home_team_model","away_team_model","home_line","total_line","home_spread","home_score","away_score","neutral_site"]
+    live_cols += [c for c in ["home_coach","away_coach"] if c in board]
+    live=board[live_cols].rename(columns={"home_team_model":"home_team","away_team_model":"away_team"}).copy()
+    live["game_id"]="live_"+live.game_id.astype(str)
+    combined=pd.concat([hist,live],ignore_index=True,sort=False)
+    enriched=add_pregame_features(combined)
+    live_ids=set(live.game_id)
+    board_features=enriched[enriched.game_id.isin(live_ids)].copy()
+    board_features["game_id"]=board_features.game_id.str.replace("^live_","",regex=True)
+    board=board.merge(board_features[["game_id"]+FEATURES],on="game_id",how="left",suffixes=("","_features"))
+    for c in FEATURES:
+        if c+"_features" in board:
+            board[c]=pd.to_numeric(board[c+"_features"],errors="coerce").fillna(0)
+            board=board.drop(columns=[c+"_features"])
+        elif c not in board:
+            board[c]=0
+    probs=[]
+    for name,model in model_bank.items():
+        cols=(feature_map or {}).get(name,FEATURES)
+        probs.append(model.predict_proba(board[cols])[:,1])
+        board[f"p_home_{name}"]=probs[-1]
+    chosen_p=board[f"p_home_{selected}"].clip(1e-5,1-1e-5).to_numpy()
+    if calibrator is not None:
+        logit=np.log(chosen_p/(1-chosen_p)).reshape(-1,1)
+        board["p_home_cover"]=calibrator.predict_proba(logit)[:,1]
+    else:
+        board["p_home_cover"]=chosen_p
+    board["p_away_cover"]=1-board.p_home_cover
+    board["best_side"]=np.where(board.p_home_cover>=.5,board.home_team,board.away_team)
+    board["best_cover_probability"]=np.maximum(board.p_home_cover,board.p_away_cover)
+    board["model_confidence"]=np.abs(board.p_home_cover-.5)*2
+    # Ranking currently uses probability + bookmaker agreement; market edge is included as a separate transparency field.
+    sides=np.where(board.p_home_cover>=.5,"home","away")
+    board["model_agreement"]=[float(np.mean([(p[i]>=.5)==(board.p_home_cover.iloc[i]>=.5) for p in probs])) for i in range(len(board))]
+    board["selected_model_probability"]=[float(board.loc[i,f"p_home_{selected}"] if sides[i]=="home" else 1-board.loc[i,f"p_home_{selected}"]) for i in range(len(board))]
+    board["rank_score"]=board.best_cover_probability+0.005*board.model_agreement
+    return board.sort_values(["rank_score","line_updated"],ascending=[False,False]).reset_index(drop=True)
