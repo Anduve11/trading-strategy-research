@@ -44,7 +44,7 @@ def download_daily(pair,key,secret,session=None):
     import requests
     session=session or requests.Session()
     params={'symbols':','.join((pair.proxy,pair.bull,pair.bear)),'timeframe':'1Day',
-      'start':'2018-01-01T05:00:00Z','end':'2026-10-01T04:00:00Z','feed':'sip','adjustment':'split','limit':10000,'sort':'asc'}
+      'start':'2018-01-01T05:00:00Z','end':'2026-10-01T03:59:59Z','feed':'sip','adjustment':'split','limit':10000,'sort':'asc'}
     headers={'APCA-API-KEY-ID':key,'APCA-API-SECRET-KEY':secret}
     rows=[];seen=set()
     for _ in range(10):
