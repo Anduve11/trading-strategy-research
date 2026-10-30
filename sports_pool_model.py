@@ -287,6 +287,7 @@ def add_pregame_features(games: pd.DataFrame) -> pd.DataFrame:
     d.loc[d.home_margin.isna()|d.home_line.isna(),"home_cover"]=np.nan
     d["line_move_home"]=d.home_line-d.home_line_open
     if "conference_game" not in d:d["conference_game"]=np.nan
+    if "division_game" not in d:d["division_game"]=np.nan
 
     def dist_miles(lat1: float,lon1: float,lat2: float,lon2: float) -> float:
         if not np.isfinite([lat1,lon1,lat2,lon2]).all():return np.nan
