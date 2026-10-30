@@ -80,6 +80,10 @@ streamlit run app.py
 
 `trade_lab/archive.py` is the private cloud archive; `trade_lab/regimes.py` is the leak-resistant regime classifier; `trade_lab/research.py` orchestrates multi-year tests; `trade_lab/engine.py` is the execution simulator; `trade_lab/alpaca.py` loads consolidated historical bars. Streamlit app secrets are intentionally never committed.
 
+## Separate sports pool app
+
+The weekly NFL and college football pool tool is in [README_SPORTS_POOL.md](README_SPORTS_POOL.md) and runs from `sports_pool_app.py`. Deploy it as a separate Streamlit Community Cloud app using this repository and set **Main file path** to `sports_pool_app.py`; the existing market app continues to use `app.py`. Configure `CFBD_API_KEY` and `ODDS_API_KEY` in that app's Streamlit secrets if you want college historical data and live odds. Its line and pick CSVs are local and should be downloaded regularly until durable storage is added.
+
 
 ## Archive-only research and annual results (v0.5)
 
