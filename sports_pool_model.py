@@ -103,9 +103,12 @@ def _cfbd_games(year: int, token: str) -> pd.DataFrame:
             for src in candidates:
                 if src in d:
                     d[dst]=d[src];break
+    # pandas can produce both venue_id and venueId when a nested venue object
+    # is normalized alongside a legacy flat identifier. Keep one join key.
+    d=d.loc[:,~d.columns.duplicated()].copy()
     d["season"] = year
     d["sport"] = "NCAAF"
-    if "venueId" in d:d=d.rename(columns={"venueId":"venue_id"})
+    if "venue_id" not in d and "venueId" in d:d=d.rename(columns={"venueId":"venue_id"})
     if "venue_name" in d and "venue" not in d:d=d.rename(columns={"venue_name":"venue"})
     d["game_date"] = pd.to_datetime(d.get("game_date"), errors="coerce", utc=True).dt.tz_convert(None)
     for c in ("home_score", "away_score"):
@@ -156,7 +159,7 @@ def _cfbd_venues(token: str) -> pd.DataFrame:
     ren={"id":"venue_id","latitude":"venue_lat","longitude":"venue_lon","elevation":"venue_elevation","dome":"venue_dome","name":"venue"}
     d=d.rename(columns={k:v for k,v in ren.items() if k in d})
     if "venue_id" not in d:return pd.DataFrame()
-    return d
+    return d.drop_duplicates("venue_id",keep="last")
 
 
 def _cfbd_weather(year: int, token: str) -> pd.DataFrame:
