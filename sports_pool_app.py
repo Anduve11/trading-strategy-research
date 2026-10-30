@@ -66,11 +66,24 @@ def cached_model(sport: str, games: pd.DataFrame, feature_version: str):
 
 
 def secret(key: str) -> str:
+    # Streamlit secret keys are case-sensitive, and some users may have saved
+    # the CFBD name in lowercase. Accept both spellings to avoid a false 401.
+    aliases=[key]
+    if key.upper()=="CFBD_API_KEY":aliases += ["cfbd_api_key","Cfbd_Api_Key"]
+    value=""
     try:
-        value = st.secrets.get(key, "")
+        for name in aliases:
+            value=st.secrets.get(name,"")
+            if value:break
     except Exception:
-        value = ""
-    return str(value or os.getenv(key, "")).strip()
+        pass
+    if not value:
+        for name in aliases:
+            value=os.getenv(name,"")
+            if value:break
+    value=str(value or "").strip()
+    if value.lower().startswith("bearer "):value=value[7:].strip()
+    return value
 
 
 def display_line(row: pd.Series) -> str:
