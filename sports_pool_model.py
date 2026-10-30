@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from typing import Any
+from hashlib import sha256
 import math
 import re
 import requests
@@ -40,7 +41,7 @@ def load_nfl_history(start_year: int, end_year: int) -> pd.DataFrame:
     d["home_team"] = d.home_team.astype(str)
     d["away_team"] = d.away_team.astype(str)
     d["neutral_site"] = d.location.eq("neutral") if "location" in d else False
-    if "div_game" in d:d["conference_game"]=d.div_game.fillna(False).astype(bool)
+    if "div_game" in d:d["division_game"]=d.div_game.fillna(False).astype(bool)
     d["venue"] = d.get("stadium", "")
     d["temperature"] = pd.to_numeric(d.get("temp"), errors="coerce")
     d["wind"] = pd.to_numeric(d.get("wind"), errors="coerce")
@@ -232,7 +233,10 @@ def load_cfb_history(start_year: int, end_year: int, token: str, venues: pd.Data
         if "venue" not in games:games["venue"]=games.get("venue_name","")
         for c in ["venue_lat","venue_lon","venue_elevation","venue_dome","city","state","timezone"]:
             if c not in games:games[c]=np.nan
-        for loader in (_cfbd_lines, _cfbd_weather, _cfbd_team_game_stats):
+        # Keep the feeds that currently return usable schedule/line data.
+        # Weather is tier-restricted and the team-box-score endpoint rejects
+        # this key/query; neither should generate a warning on every rerun.
+        for loader in (_cfbd_lines,):
             try:
                 extra = loader(year, token)
                 if "id" in games and "id" in extra:
@@ -241,17 +245,6 @@ def load_cfb_history(start_year: int, end_year: int, token: str, venues: pd.Data
                 # Keep valid schedules/results when a separate supplemental
                 # endpoint has different access, coverage, or rate limits.
                 notes.append(f"{loader.__name__}: {exc}")
-        try:
-            coaches=_cfbd_coaches(year,token)
-            if not coaches.empty:
-                coach_map={normalize_team(r.school):r.coach for r in coaches.itertuples() if str(r.coach).strip()}
-                games["home_coach"]=games.home_team.map(lambda x:coach_map.get(normalize_team(x),np.nan))
-                games["away_coach"]=games.away_team.map(lambda x:coach_map.get(normalize_team(x),np.nan))
-                if not games[["home_coach","away_coach"]].notna().any(axis=1).any():notes.append("Coach records returned but no team names matched the game feed")
-            else:
-                notes.append("No coach records returned for this season")
-        except Exception as exc:
-            notes.append(f"Coach data unavailable: {exc}")
         games["cfbd_data_notes"]="; ".join(notes)
         frames.append(games)
     out=pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
@@ -431,7 +424,7 @@ def add_pregame_features(games: pd.DataFrame) -> pd.DataFrame:
     return d
 
 
-FEATURES = ["home_line","home_line_open","line_move_home","total_line","home_advantage","conference_game","form_margin_diff","form_win_diff","points_allowed_diff","rest_diff","home_margin5","away_margin5","home_win5","away_win5","home_margin2","away_margin2","home_points_for2","away_points_for2","home_points_for3","away_points_for3","home_points_against2","away_points_against2","home_points_against3","away_points_against3","home_win_pct3","away_win_pct3","home_ats_margin3","away_ats_margin3","home_ats_cover3","away_ats_cover3","home_ats_cover5","away_ats_cover5","home_ats_games5","away_ats_games5","home_ats_streak","away_ats_streak","home_ats_cover_season","away_ats_cover_season","home_ats_rank","away_ats_rank","home_games_seen","away_games_seen","home_margin3","away_margin3","home_momentum","away_momentum","home_bye_return","away_bye_return","home_rest_days","away_rest_days","home_travel_miles","away_travel_miles","time_zone_shift_diff","altitude_change_diff","home_coach_win10","away_coach_win10","home_coach_ats10","away_coach_ats10","coach_form_diff","home_coach_games","away_coach_games","home_coach_changed","away_coach_changed","venue_dome_flag","home_elo","away_elo","elo_diff","home_yards3","away_yards3","home_pass_yards3","away_pass_yards3","home_rush_yards3","away_rush_yards3","home_turnovers3","away_turnovers3","home_sacks3","away_sacks3","home_third_down_eff3","away_third_down_eff3","home_red_zone_eff3","away_red_zone_eff3"]
+FEATURES = ["home_line","home_line_open","line_move_home","total_line","home_advantage","conference_game","division_game","form_margin_diff","form_win_diff","points_allowed_diff","rest_diff","home_margin5","away_margin5","home_win5","away_win5","home_margin2","away_margin2","home_points_for2","away_points_for2","home_points_for3","away_points_for3","home_points_against2","away_points_against2","home_points_against3","away_points_against3","home_win_pct3","away_win_pct3","home_ats_margin3","away_ats_margin3","home_ats_cover3","away_ats_cover3","home_ats_cover5","away_ats_cover5","home_ats_games5","away_ats_games5","home_ats_streak","away_ats_streak","home_ats_cover_season","away_ats_cover_season","home_ats_rank","away_ats_rank","home_games_seen","away_games_seen","home_margin3","away_margin3","home_momentum","away_momentum","home_bye_return","away_bye_return","home_rest_days","away_rest_days","home_travel_miles","away_travel_miles","time_zone_shift_diff","altitude_change_diff","venue_dome_flag","home_elo","away_elo","elo_diff"]
 MARKET_FEATURES=["home_line","home_line_open","line_move_home","total_line","home_advantage"]
 
 
@@ -527,6 +520,47 @@ def fetch_current_odds(api_key: str, sports: list[str]) -> pd.DataFrame:
                     for outcome in market.get("outcomes",[]):
                         rows.append({"sport":sport,"game_id":game.get("id"),"start_time":game.get("commence_time"),"home_team":game.get("home_team"),"away_team":game.get("away_team"),"book":book.get("title"),"updated":book.get("last_update"),"market":market.get("key"),"name":outcome.get("name"),"point":outcome.get("point"),"price":outcome.get("price")})
     return pd.DataFrame(rows)
+
+
+def archive_odds_snapshot(quotes: pd.DataFrame, supabase_url: str, service_key: str, snapshot_time: str | None = None) -> int:
+    """Append current quotes to a Supabase table using idempotent 5-minute keys.
+
+    The caller supplies credentials from Streamlit secrets. Nothing is written
+    when they are absent. Provider timestamps and local capture time are kept
+    separately so a 10 a.m. Mountain lock snapshot can be audited later.
+    """
+    if quotes.empty:return 0
+    now=pd.to_datetime(snapshot_time,utc=True) if snapshot_time else pd.Timestamp.now(tz="UTC").floor("5min")
+    captured=now.isoformat()
+    local=now.tz_convert("America/Denver")
+    lock_window=(local.hour==10 and local.minute<5) or (local.hour==9 and local.minute>=55)
+    rows=[]
+    for q in quotes.to_dict("records"):
+        data={
+            "sport":str(q.get("sport") or ""),"event_id":str(q.get("game_id") or ""),
+            "game_date":pd.to_datetime(q.get("start_time"),utc=True,errors="coerce"),
+            "home_team":str(q.get("home_team") or ""),"away_team":str(q.get("away_team") or ""),
+            "bookmaker":str(q.get("book") or ""),"market":str(q.get("market") or ""),
+            "outcome":str(q.get("name") or ""),
+            "point":None if pd.isna(q.get("point")) else float(q.get("point")),
+            "price":None if pd.isna(q.get("price")) else float(q.get("price")),
+            "provider_updated_at":pd.to_datetime(q.get("updated"),utc=True,errors="coerce"),
+            "snapshot_time":captured,"is_pool_lock":bool(lock_window),
+        }
+        for key in ("game_date","provider_updated_at"):
+            data[key]=data[key].isoformat() if pd.notna(data[key]) else None
+        identity="|".join(str(data[k]) for k in ("sport","event_id","bookmaker","market","outcome","point","snapshot_time"))
+        data["snapshot_key"]=sha256(identity.encode("utf-8")).hexdigest()
+        rows.append(data)
+    headers={"apikey":service_key,"Authorization":f"Bearer {service_key}","Content-Type":"application/json","Prefer":"resolution=ignore-duplicates,return=minimal"}
+    endpoint=f"{supabase_url.rstrip('/')}/rest/v1/odds_snapshots?on_conflict=snapshot_key"
+    saved=0
+    for start in range(0,len(rows),500):
+        batch=rows[start:start+500]
+        response=requests.post(endpoint,headers=headers,json=batch,timeout=45)
+        response.raise_for_status()
+        saved+=len(batch)
+    return saved
 
 
 def fetch_forecast_weather(board: pd.DataFrame) -> pd.DataFrame:
@@ -631,7 +665,10 @@ def make_current_board(odds: pd.DataFrame, history: pd.DataFrame, model_bank: di
     hist_names=list(set(hist.home_team.astype(str))|set(hist.away_team.astype(str)))
     board["home_team_model"]=board.home_team.map(lambda n:resolve_team_name(n,hist_names,board.iloc[0].sport))
     board["away_team_model"]=board.away_team.map(lambda n:resolve_team_name(n,hist_names,board.iloc[0].sport))
-    meta_cols=[c for c in ["game_date","home_team","away_team","conference_game","venue","home_coach","away_coach","temperature","wind","humidity","precipitation","home_spread_open","venue_lat","venue_lon","venue_elevation","venue_dome","city","state","timezone"] if c in hist]
+    # Only bring date-specific metadata across when it matches the actual
+    # scheduled event. Falling back to last year's same matchup can silently
+    # mislabel conference status and can leak an old opening spread.
+    meta_cols=[c for c in ["game_date","home_team","away_team","conference_game","division_game","venue","home_spread_open","venue_lat","venue_lon","venue_elevation","venue_dome","city","state","timezone"] if c in hist]
     if len(meta_cols)>3:
         meta=hist[meta_cols].dropna(subset=["game_date"]).copy()
         lookup=[]
@@ -639,19 +676,20 @@ def make_current_board(odds: pd.DataFrame, history: pd.DataFrame, model_bank: di
             q=meta[(meta.home_team.astype(str)==r.home_team_model)&(meta.away_team.astype(str)==r.away_team_model)]
             if q.empty:lookup.append({"game_id":r.game_id});continue
             q=q.assign(_delta=(pd.to_datetime(q.game_date)-pd.to_datetime(r.game_date)).abs().dt.total_seconds())
+            q=q[q._delta<=12*60*60]
+            if q.empty:lookup.append({"game_id":r.game_id});continue
             best=q.sort_values("_delta").iloc[0]
             item={"game_id":r.game_id}
-            for c in ["conference_game","venue","home_coach","away_coach","temperature","wind","humidity","precipitation","home_spread_open","venue_lat","venue_lon","venue_elevation","venue_dome","city","state","timezone"]:
+            for c in ["conference_game","division_game","venue","home_spread_open","venue_lat","venue_lon","venue_elevation","venue_dome","city","state","timezone"]:
                 if c in best:item[c]=best[c]
             lookup.append(item)
         board=board.merge(pd.DataFrame(lookup),on="game_id",how="left",suffixes=("","_meta"))
-    live_cols=["game_id","sport","season","game_date","home_team_model","away_team_model","home_line","home_spread_open","total_line","home_spread","home_score","away_score","neutral_site","conference_game","venue_lat","venue_lon","venue_elevation","venue_dome"]
+    live_cols=["game_id","sport","season","game_date","home_team_model","away_team_model","home_line","home_spread_open","total_line","home_spread","home_score","away_score","neutral_site","conference_game","division_game","venue_lat","venue_lon","venue_elevation","venue_dome"]
     for c in live_cols:
         if c not in board:board[c]=np.nan
     if board.iloc[0].sport=="NFL":
         board["venue_lat"],board["venue_lon"],board["venue_elevation"]=_nfl_venue_columns(board.assign(home_team=board.home_team_model))
         board["venue_dome"]=board.home_team_model.astype(str).isin(NFL_DOME)
-    live_cols += [c for c in ["home_coach","away_coach"] if c in board]
     live=board[live_cols].rename(columns={"home_team_model":"home_team","away_team_model":"away_team"}).copy()
     live["game_id"]="live_"+live.game_id.astype(str)
     combined=pd.concat([hist,live],ignore_index=True,sort=False)
