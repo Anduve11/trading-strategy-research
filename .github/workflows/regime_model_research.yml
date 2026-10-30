@@ -1,0 +1,59 @@
+name: Daily regime and growth models (paper-only)
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['trade_lab/regime_models.py', 'scripts/regime_model_research.py', '.github/workflows/regime_model_research.yml']
+permissions:
+  contents: read
+concurrency:
+  group: market-edge-regime-models-v1
+  cancel-in-progress: false
+env:
+  SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+  SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+  OMP_NUM_THREADS: '1'
+  OPENBLAS_NUM_THREADS: '1'
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      prefix: ${{ steps.prepare.outputs.prefix }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: requirements-ml.txt
+      - run: python -m pip install -r requirements-ml.txt pytest
+      - run: python -m pytest -q
+      - id: prepare
+        shell: bash
+        run: |
+          research_prefix="research/regime-inputs-v1/${GITHUB_RUN_ID}/${GITHUB_RUN_ATTEMPT}"
+          python scripts/regime_model_research.py --prepare --prefix "$research_prefix"
+          echo "prefix=$research_prefix" >> "$GITHUB_OUTPUT"
+  research:
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        pair: [semiconductors, semiconductors2, smallcap, technology, nasdaq3, nasdaq2, sp500, financials, biotech, sp500_2, dow2, dow3, smallcap2, financials2, realestate2, gold2, treasury2, treasury3]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: requirements-ml.txt
+      - run: python -m pip install -r requirements-ml.txt
+      - run: python scripts/regime_model_research.py --pair ${{ matrix.pair }} --prefix '${{ needs.prepare.outputs.prefix }}'
