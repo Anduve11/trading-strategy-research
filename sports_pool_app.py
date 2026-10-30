@@ -28,24 +28,24 @@ def cached_cfb_venues(key: str) -> pd.DataFrame:
 
 
 @st.cache_data(ttl=30*86400, show_spinner=False)
-def cached_completed_cfb_year(year: int, key: str, venues: pd.DataFrame) -> pd.DataFrame:
+def cached_completed_cfb_year(year: int, key: str, venues: pd.DataFrame, data_version: str) -> pd.DataFrame:
     return load_cfb_history(year, year, key, venues)
 
 
 @st.cache_data(ttl=86400, show_spinner=False)
-def cached_current_cfb_year(year: int, key: str, venues: pd.DataFrame) -> pd.DataFrame:
+def cached_current_cfb_year(year: int, key: str, venues: pd.DataFrame, data_version: str) -> pd.DataFrame:
     return load_cfb_history(year, year, key, venues)
 
 
 @st.cache_data(ttl=86400, show_spinner=False)
-def cached_cfb_history(start: int, end: int, key: str) -> pd.DataFrame:
+def cached_cfb_history(start: int, end: int, key: str, data_version: str) -> pd.DataFrame:
     venue_error=""
     try:venues=cached_cfb_venues(key)
     except Exception as exc:
         venues=pd.DataFrame();venue_error=f"Venue metadata unavailable: {exc}"
     parts=[]
     for year in range(start,end+1):
-        part=cached_current_cfb_year(year,key,venues) if year==end else cached_completed_cfb_year(year,key,venues)
+        part=cached_current_cfb_year(year,key,venues,data_version) if year==end else cached_completed_cfb_year(year,key,venues,data_version)
         if not part.empty:
             if venue_error:part["cfbd_data_notes"]=part.get("cfbd_data_notes","").astype(str).map(lambda x:"; ".join(y for y in [x,venue_error] if y))
             parts.append(part)
@@ -118,6 +118,10 @@ def pick_explanation(row: pd.Series) -> str:
     cover=pd.to_numeric(pd.Series([row.get(f"{side}_ats_cover3")]),errors="coerce").iloc[0]
     ats_n=pd.to_numeric(pd.Series([row.get(f"{side}_ats_games3")]),errors="coerce").iloc[0]
     if pd.notna(cover) and pd.notna(ats_n) and ats_n>0:parts.append(f"Recent ATS cover rate: {cover:.0%} over {int(ats_n)} lined game(s).")
+    streak=pd.to_numeric(pd.Series([row.get(f"{side}_ats_streak")]),errors="coerce").iloc[0]
+    rank=pd.to_numeric(pd.Series([row.get(f"{side}_ats_rank")]),errors="coerce").iloc[0]
+    if pd.notna(streak) and streak>0:parts.append(f"ATS cover streak: {int(streak)} game(s).")
+    if pd.notna(rank):parts.append(f"Pregame cumulative ATS rank: {int(rank)}.")
     rest=pd.to_numeric(pd.Series([row.get(f"{side}_rest_days")]),errors="coerce").iloc[0]
     bye=pd.to_numeric(pd.Series([row.get(f"{side}_bye_return")]),errors="coerce").iloc[0]
     if pd.notna(bye) and bye>=1:parts.append("Coming off a same-season bye week.")
@@ -127,6 +131,7 @@ def pick_explanation(row: pd.Series) -> str:
     coach=pd.to_numeric(pd.Series([row.get(f"{side}_coach_win10")]),errors="coerce").iloc[0]
     coach_n=pd.to_numeric(pd.Series([row.get(f"{side}_coach_games")]),errors="coerce").iloc[0]
     if pd.notna(coach) and pd.notna(coach_n) and coach_n>0:parts.append(f"Coach's prior-game win rate in the data: {coach:.0%}.")
+    if pd.notna(row.get("conference_game")):parts.append("Conference game." if bool(row.get("conference_game")) else "Nonconference game.")
     weather=row.get("forecast_summary")
     if isinstance(weather,str) and weather:parts.append(weather)
     return " ".join(parts)
@@ -237,7 +242,7 @@ def main() -> None:
         cfb_error=""
         if cfbd_key:
             try:
-                cfb=cached_cfb_history(first_year,last_year,cfbd_key)
+                cfb=cached_cfb_history(first_year,last_year,cfbd_key,"cfbd_schema_20261030_v2")
             except Exception as exc:
                 cfb_error=str(exc)
         odds_parts=[]
@@ -272,7 +277,7 @@ def main() -> None:
     with st.spinner("Training twelve model candidates and grading them with season-by-season holdouts…"):
         for sport,games in histories.items():
             try:
-                model_results[sport]=cached_model(sport,games,"features_20261030_v3")
+                model_results[sport]=cached_model(sport,games,"features_20261030_v4")
             except Exception as exc:
                 training_errors[sport]=str(exc)
 
@@ -327,8 +332,9 @@ def main() -> None:
     top["Current line"]=top.apply(display_line,axis=1)
     top["Cover probability"]=top.best_cover_probability
     top["Model agreement"]=top.model_agreement
+    top["ATS form"]=top.apply(lambda r:f"{float(r.get('home_ats_cover5',.5) if r.best_side==r.home_team else r.get('away_ats_cover5',.5)):.0%} last 5 · rank {int(r.get('home_ats_rank',0) if r.best_side==r.home_team else r.get('away_ats_rank',0))}",axis=1)
     top["Confidence score"]=top.rank_score
-    cols=["Rank","sport","game_date","away_team","home_team","Recommended pick","Open / Tuesday spread","Current line","Cover probability","Model agreement"]
+    cols=["Rank","sport","game_date","away_team","home_team","conference_game","Recommended pick","Open / Tuesday spread","Current line","ATS form","Cover probability","Model agreement"]
 
     top_tab,analysis_tab,data_tab=st.tabs(["Top 10 this week","Model performance","Data coverage"])
     with top_tab:
@@ -347,10 +353,10 @@ def main() -> None:
         rest["Recommended pick"]=rest.best_side
         rest["Open home spread"]=rest.home_line_open
         rest["Current home spread"]=rest.home_line
-        all_cols=["sport","game_date","away_team","home_team","Open home spread","Current home spread","Recommended pick","best_cover_probability","model_agreement","total_line","forecast_summary","line_updated"]+[c for c in ["venue","home_coach","away_coach","home_travel_miles","away_travel_miles","home_bye_return","away_bye_return"] if c in rest]
+        all_cols=["sport","game_date","away_team","home_team","conference_game","Open home spread","Current home spread","Recommended pick","best_cover_probability","model_agreement","home_ats_cover5","away_ats_cover5","home_ats_streak","away_ats_streak","home_ats_rank","away_ats_rank","home_elo","away_elo","total_line","forecast_summary","line_updated"]+[c for c in ["venue","home_coach","away_coach","home_travel_miles","away_travel_miles","home_bye_return","away_bye_return"] if c in rest]
         st.dataframe(rest[all_cols].style.format({"best_cover_probability":"{:.1%}","model_agreement":"{:.0%}"}),use_container_width=True,hide_index=True)
         with st.expander("Top ten game details"):
-            detail_cols=[c for c in ["sport","game_date","away_team","home_team","venue","home_coach","away_coach","temperature","wind","humidity","precipitation","forecast_summary","home_travel_miles","away_travel_miles","home_time_zone_shift","away_time_zone_shift","home_altitude_change","away_altitude_change","home_margin2","away_margin2","home_margin3","away_margin3","home_ats_cover3","away_ats_cover3","home_bye_return","away_bye_return"] if c in top]
+            detail_cols=[c for c in ["sport","game_date","away_team","home_team","conference_game","venue","home_coach","away_coach","temperature","wind","humidity","precipitation","forecast_summary","home_travel_miles","away_travel_miles","home_time_zone_shift","away_time_zone_shift","home_altitude_change","away_altitude_change","home_margin2","away_margin2","home_margin3","away_margin3","home_ats_cover3","away_ats_cover3","home_ats_cover5","away_ats_cover5","home_ats_streak","away_ats_streak","home_ats_rank","away_ats_rank","home_elo","away_elo","home_bye_return","away_bye_return"] if c in top]
             st.dataframe(top[detail_cols],use_container_width=True,hide_index=True)
         local_now=pd.Timestamp.now(tz="UTC").tz_convert(None)
         missing=[]
