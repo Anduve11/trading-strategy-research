@@ -345,7 +345,7 @@ def block_bootstrap_interval(daily, repetitions=1000, block_size=5):
 
 
 def walk_forward_search(data, specs, model_names=('ridge', 'extra_trees'),
-                        cushions=(0., .05, .10), min_trades=75):
+                        cushions=(0., .05, .10), min_trades=75, label_column=None):
     """No 2024+ observation affects ranking, scaling, fitting or selection."""
     results, predictions = [], {}
     for policy, raw in data.groupby(['decision_minute', 'horizon', 'exit_policy'], sort=True):
@@ -422,7 +422,7 @@ def walk_forward_search(data, specs, model_names=('ridge', 'extra_trees'),
                          'cash_return_pct': 0.,
                          'mean_daily_account_return_95pct_unadjusted': block_bootstrap_interval(account_daily(test, sides)),
                          'qqq_direction_accuracy_on_trades': float(np.mean(
-                             np.sign(test[f'qqq_forward_{policy[1]}m_pct'].to_numpy())[sides != 0] == sides[sides != 0])) if (sides != 0).any() else None,
+                             np.sign(test[label_column or f'qqq_forward_{policy[1]}m_pct'].to_numpy())[sides != 0] == sides[sides != 0])) if (sides != 0).any() else None,
                          'annual': {str(y): metrics(test.loc[pd.to_datetime(test.date).dt.year.eq(y)],
                                                    sides[pd.to_datetime(test.date).dt.year.eq(y)])
                                     for y in years}}
