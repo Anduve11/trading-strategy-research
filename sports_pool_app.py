@@ -39,11 +39,16 @@ def cached_current_cfb_year(year: int, key: str, venues: pd.DataFrame) -> pd.Dat
 
 @st.cache_data(ttl=86400, show_spinner=False)
 def cached_cfb_history(start: int, end: int, key: str) -> pd.DataFrame:
-    venues=cached_cfb_venues(key)
+    venue_error=""
+    try:venues=cached_cfb_venues(key)
+    except Exception as exc:
+        venues=pd.DataFrame();venue_error=f"Venue metadata unavailable: {exc}"
     parts=[]
     for year in range(start,end+1):
         part=cached_current_cfb_year(year,key,venues) if year==end else cached_completed_cfb_year(year,key,venues)
-        if not part.empty:parts.append(part)
+        if not part.empty:
+            if venue_error:part["cfbd_data_notes"]=part.get("cfbd_data_notes","").astype(str).map(lambda x:"; ".join(y for y in [x,venue_error] if y))
+            parts.append(part)
     return pd.concat(parts,ignore_index=True) if parts else pd.DataFrame()
 
 
@@ -252,6 +257,9 @@ def main() -> None:
             st.warning("CollegeFootballData returned 401. In this app's Settings → Secrets, set CFBD_API_KEY to your CollegeFootballData key (not the Odds API key). Enter only the key value; the app adds the Bearer header itself. Save and reboot the app.")
         else:
             st.warning(f"College history could not be loaded: {cfb_error}")
+    if not cfb.empty and "cfbd_data_notes" in cfb:
+        notes=sorted({x for x in cfb.cfbd_data_notes.fillna("").astype(str) if x})
+        if notes:st.warning("Some optional CFBD feeds failed; available data was retained: " + " | ".join(notes[:6]))
     for error in odds_errors:st.warning(error)
     if odds.empty:
         st.error("No current odds returned. Check the odds API key, plan, and league coverage.")
