@@ -7,7 +7,7 @@ import exchange_calendars as xcals
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from trade_lab.archive import SupabaseArchive
 from trade_lab.daily_screen import UNIVERSE
-from trade_lab.paper_signals import MANIFEST,target_session,freeze_signal,reconcile_signal
+from trade_lab.paper_signals import MANIFEST,target_session,freeze_signal,reconcile_signal,latest_expected_started_session
 from trade_lab.market_data_requests import historical_bars
 from scripts.daily_screen import save
 from scripts.automated_research import required_env,send_private_report
@@ -32,9 +32,13 @@ def main():
     day=str(pd.Timestamp(target).date());previous_day=str(pd.Timestamp(prior).date())
     url,secret=required_env('SUPABASE_URL'),required_env('SUPABASE_SECRET_KEY');archive=SupabaseArchive(url,secret)
     key,api_secret=required_env('ALPACA_KEY_ID'),required_env('ALPACA_SECRET_KEY')
-    checks=[];new_predictions=0
+    checks=[];new_predictions=0;started_day=latest_expected_started_session(cal.schedule,now);started_records=0
     for name in MANIFEST['pairs']:
         pair=UNIVERSE[name];check={'pair':name,'target_session':day}
+        if started_day:
+            present=optional_blob(archive,key_for(started_day,name)) is not None
+            started_records+=int(present)
+            check.update(last_started_session=started_day,started_session_has_record=present)
         # Reconcile only an already-recorded signal after its session closes.
         past=optional_blob(archive,key_for(previous_day,name))
         if past and now>=cal.schedule.loc[prior,'close']+pd.Timedelta(minutes=30):
@@ -74,12 +78,17 @@ def main():
             save(archive,key_for(day,name),gzip.compress(json.dumps(record,allow_nan=False).encode(),mtime=0))
             new_predictions+=1;check.update(prediction_status='FROZEN_BEFORE_ENTRY',prediction_id=record['prediction_id'],
                                             prediction_path=key_for(day,name))
+        check['target_session_has_record']=check['prediction_status'] in ('ALREADY_LOGGED_IMMUTABLE','FROZEN_BEFORE_ENTRY')
         checks.append(check)
         print(f'{name}: paper-ledger check complete; no orders.',flush=True)
     run=str(uuid.uuid4())
     body={'run_id':run,'code_sha':os.getenv('GITHUB_SHA','manual'),'research_start':day,'research_end':day,
       'candidate_count':4,'summary':{'model_type':'paper_signal_ledger_v1','go_no_go':'NO_VALIDATED_EDGE',
-        'target_session':day,'new_predictions_written':new_predictions,'checks':checks,'manifest':MANIFEST},'leaderboard':[],
+        'target_session':day,'new_predictions_written':new_predictions,'checks':checks,'manifest':MANIFEST,
+        'last_started_session':started_day,'started_session_record_count':started_records if started_day else None,
+        'target_session_record_count':sum(c['target_session_has_record'] for c in checks),
+        'ledger_health':('MISSED_PREENTRY_RECORDS' if started_day and started_records<len(MANIFEST['pairs'])
+                         else 'STARTED_SESSION_RECORDS_PRESENT' if started_day else 'NO_FORWARD_SESSION_STARTED')},'leaderboard':[],
       'diagnostics':{'no_live_orders':True,'no_capital_moved':True,'count_unit':'4 frozen signal candidates; 0/5-minute entry reconciliation scenarios',
         'limitations':['Prospective evidence starts only with successfully timestamped pre-entry records; never backfill predictions',
           'Observed minute endpoints remain hypothetical fills; quotes, market impact and dollar sizing unverified',

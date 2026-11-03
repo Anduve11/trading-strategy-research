@@ -61,8 +61,9 @@ pairs with two fixed timing scenarios, 0/5-minute entry and last regular-minute
 close. Cash is explicitly recorded when no signal qualifies. The candidate was
 chosen after inspecting history and starts **unvalidated**.
 
-Workflow `.github/workflows/paper_signal_ledger.yml` runs weekdays at 13:00 UTC,
-before the US regular open in both standard and daylight time. GitHub schedules
+Workflow `.github/workflows/paper_signal_ledger.yml` now attempts weekdays at
+12:17 and 12:47 UTC, before the US regular open in standard and daylight time,
+and checks reconciliation at 23:17 UTC. GitHub schedules
 can run late; the timestamp/deadline check, not the cron label, determines
 prospective eligibility. It also runs on an explicit dispatch or relevant push.
 
@@ -97,6 +98,14 @@ Private reports use model types `execution_refinement_v1` and
 printed in Actions logs. Source/checksum/authentication failures fail explicitly.
 The recurring historical weekly review still exists; it is separate from this
 new weekday pre-entry ledger. No actual trading is enabled by either workflow.
+
+The November 3 review found no scheduled pre-entry run or stored prediction
+for that session. Its exact scheduler cause was not established. Do not
+backfill that missed session. The off-hour retry schedule is a reliability
+mitigation, not evidence that the scheduler is fixed. A new health check
+records whether the latest started session (beginning November 3) has each
+required prediction and how many records exist for the upcoming target.
+It is read-only for started sessions and never creates a past prediction.
 
 Primary API documentation:
 

@@ -3,7 +3,7 @@ import pandas as pd
 import pytest
 import exchange_calendars as xcals
 from trade_lab.daily_screen import UNIVERSE
-from trade_lab.paper_signals import target_session,freeze_signal,reconcile_signal
+from trade_lab.paper_signals import target_session,freeze_signal,reconcile_signal,latest_expected_started_session
 
 
 def sample(now='2026-11-03T13:00Z'):
@@ -60,3 +60,12 @@ def test_halfday_and_holiday_use_exchange_schedule():
     assert str(pd.Timestamp(target).date())=='2026-11-27'
     assert str(pd.Timestamp(prior).date())=='2026-11-25'
     assert cal.schedule.loc[target,'close']==pd.Timestamp('2026-11-27T18:00Z')
+
+
+def test_health_check_reports_started_session_without_backfilling_it():
+    cal,_,_,_=sample()
+    assert latest_expected_started_session(cal.schedule,pd.Timestamp('2026-11-03T13:00Z')) is None
+    assert latest_expected_started_session(cal.schedule,pd.Timestamp('2026-11-03T15:00Z'))=='2026-11-03'
+    assert latest_expected_started_session(cal.schedule,pd.Timestamp('2026-11-04T13:00Z'))=='2026-11-03'
+    target,_,_,_=target_session(cal.schedule,pd.Timestamp('2026-11-03T15:00Z'))
+    assert str(pd.Timestamp(target).date())=='2026-11-04'

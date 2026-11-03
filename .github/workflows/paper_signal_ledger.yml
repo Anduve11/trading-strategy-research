@@ -2,7 +2,8 @@ name: Frozen pre-entry paper signals (no orders)
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 13 * * 1-5'
+    - cron: '17,47 12 * * 1-5'
+    - cron: '17 23 * * 1-5'
   push:
     branches: [main]
     paths: ['trade_lab/paper_signals.py', 'scripts/paper_signal_ledger.py', '.github/workflows/paper_signal_ledger.yml']

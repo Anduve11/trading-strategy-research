@@ -10,6 +10,16 @@ MANIFEST={'strategy_version':'volume_reversal_forward_v1','threshold':.75,'volum
     'pairs':['semiconductors','semiconductors2','smallcap','nasdaq3'],
     'status':'UNVALIDATED_PAPER_CANDIDATE_NO_ORDERS'}
 
+FORWARD_FIRST_TARGET='2026-11-03'
+
+
+def latest_expected_started_session(schedule,now):
+    """Health check only: never use this date to backfill a prediction."""
+    now=pd.Timestamp(now)
+    if now.tzinfo is None:raise ValueError('Aware timestamp required')
+    started=schedule.loc[(schedule.open<=now)&(schedule.index>=pd.Timestamp(FORWARD_FIRST_TARGET))]
+    return None if started.empty else str(pd.Timestamp(started.index[-1]).date())
+
 
 def target_session(schedule,now):
     now=pd.Timestamp(now)
