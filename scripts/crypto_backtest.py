@@ -31,11 +31,21 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--granularity", type=int, choices=tuple(GRANULARITIES), default=21600)
     parser.add_argument("--cost-scenarios", default="10,25,50", help="Combined bps per side; comma-separated.")
-    parser.add_argument("--allocation", type=float, default=100.0)
+    parser.add_argument("--allocation", type=float, default=100.0, help="Single allocation scenario, unless --allocation-scenarios is used.")
+    parser.add_argument(
+        "--allocation-scenarios", default=None,
+        help="Optional account allocation percentages to compare, e.g. 25,50,100.",
+    )
     args = parser.parse_args()
     costs = [float(value) for value in args.cost_scenarios.split(",") if value.strip()]
     if not costs or any(value <= 0 or value >= 10000 for value in costs):
         raise SystemExit("Provide positive per-side cost scenarios below 10,000 bps.")
+    allocations = (
+        [float(value) for value in args.allocation_scenarios.split(",") if value.strip()]
+        if args.allocation_scenarios is not None else [args.allocation]
+    )
+    if not allocations or any(value <= 0 or value > 100 for value in allocations):
+        raise SystemExit("Provide allocation scenarios in (0, 100] percent.")
 
     print(
         f"Downloading Coinbase {GRANULARITIES[args.granularity]} candles for "
@@ -66,15 +76,16 @@ def main() -> None:
         all_bars.append(bars)
 
     combined = pd.concat(all_bars, ignore_index=True)
-    for cost in costs:
-        results = run_candidate_suite(
-            combined,
-            args.granularity,
-            cost_bps_each_side=cost,
-            allocation_pct=args.allocation,
-        )
-        print(f"\n=== Combined cost: {cost:g} bps per side; allocation: {args.allocation:g}% ===")
-        print(results.to_string(index=False, float_format=lambda value: f"{value:.2f}"))
+    for allocation in allocations:
+        for cost in costs:
+            results = run_candidate_suite(
+                combined,
+                args.granularity,
+                cost_bps_each_side=cost,
+                allocation_pct=allocation,
+            )
+            print(f"\n=== Cost: {cost:g} bps per side; allocation: {allocation:g}% ===")
+            print(results.to_string(index=False, float_format=lambda value: f"{value:.2f}"))
 
 
 if __name__ == "__main__":
