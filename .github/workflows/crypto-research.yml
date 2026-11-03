@@ -38,4 +38,4 @@ jobs:
       - name: Run crypto unit tests
         run: python -m pytest -q tests/test_crypto_research.py
       - name: Fetch public bars and run cost sensitivity
-        run: python scripts/crypto_backtest.py --granularity 21600 --cost-scenarios 10,25,50 --allocation 100
+        run: python scripts/crypto_backtest.py --granularity 21600 --cost-scenarios 10,25,50 --allocation-scenarios 25,50,100
