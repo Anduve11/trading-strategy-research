@@ -39,13 +39,17 @@ class Candidate:
 
 
 def default_candidates() -> list[Candidate]:
-    """Small, predeclared set: three moving-average trends and two breakouts."""
+    """Return fixed SMA, Donchian, and time-series momentum candidates."""
     return [
         Candidate("SMA trend 20d", "sma", (20,)),
         Candidate("SMA trend 50d", "sma", (50,)),
         Candidate("SMA trend 100d", "sma", (100,)),
         Candidate("Donchian 20d/10d", "donchian", (20, 10)),
         Candidate("Donchian 55d/20d", "donchian", (55, 20)),
+        Candidate("TS momentum 20d", "tsmom", (20,)),
+        Candidate("TS momentum 60d", "tsmom", (60,)),
+        Candidate("TS momentum 120d", "tsmom", (120,)),
+        Candidate("TS momentum 240d", "tsmom", (240,)),
     ]
 
 
@@ -264,6 +268,10 @@ def position_signal(bars: pd.DataFrame, candidate: Candidate, granularity_second
         raise ValueError("Candidate lookbacks must be positive whole days.")
     bars_per_day = _bars_per_day(granularity_seconds)
     close = bars["close"].astype(float)
+    if candidate.kind == "tsmom" and len(candidate.parameters) == 1:
+        window = candidate.parameters[0] * bars_per_day
+        prior_close = close.shift(window)
+        return (close > prior_close).astype(float).rename("signal")
     if candidate.kind == "sma" and len(candidate.parameters) == 1:
         window = candidate.parameters[0] * bars_per_day
         average = close.rolling(window=window, min_periods=window).mean()
