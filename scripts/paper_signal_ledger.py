@@ -22,7 +22,8 @@ def optional_blob(archive,path):
 
 
 def key_for(day,name,suffix='prediction'):
-    return f'paper/volume-reversal-forward-v1/{day}/{name}/{suffix}.json.gz'
+    version=MANIFEST['strategy_version'].replace('_','-')
+    return f'paper/{version}/{day}/{name}/{suffix}.json.gz'
 
 
 def main():
@@ -65,7 +66,10 @@ def main():
         else:
             first=pd.Timestamp(history[0]).date();last=pd.Timestamp(prior).date()
             start=pd.Timestamp(first).tz_localize('America/New_York').tz_convert('UTC')
-            end=(pd.Timestamp(last).tz_localize('America/New_York')+pd.DateOffset(days=1)-pd.Timedelta(nanoseconds=1)).tz_convert('UTC')
+            day_end=(pd.Timestamp(last).tz_localize('America/New_York')+pd.DateOffset(days=1)-pd.Timedelta(nanoseconds=1)).tz_convert('UTC')
+            # Evening snapshots must not request a future calendar cutoff or
+            # recent SIP interval that the existing plan may not permit.
+            end=min(day_end,pd.Timestamp(datetime.now(timezone.utc))-pd.Timedelta(minutes=20))
             raw,request=historical_bars([pair.proxy],start,end,'1Day',key,api_secret)
             created=pd.Timestamp(datetime.now(timezone.utc))
             record=freeze_signal(raw,name,pair,cal.schedule,created,os.getenv('GITHUB_SHA','manual'))
@@ -93,7 +97,8 @@ def main():
         'limitations':['Prospective evidence starts only with successfully timestamped pre-entry records; never backfill predictions',
           'Observed minute endpoints remain hypothetical fills; quotes, market impact and dollar sizing unverified',
           'Separate paper accounts per pair; no live allocation or combined portfolio is implied',
-          'Vendor daily-bar finality buffer is an operational convention, not a guarantee against later revisions']}}
+          'Version 2 records the prior completed session after 21:30 New York, first target November 5; source values can later revise',
+          'Version 1 has no prospective records for November 3-4; those gaps are retained and never backfilled']}}
     send_private_report(url,secret,body)
 
 

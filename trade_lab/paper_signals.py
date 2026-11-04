@@ -3,14 +3,16 @@ import numpy as np
 import pandas as pd
 from .research_factory import stable_hash
 
-MANIFEST={'strategy_version':'volume_reversal_forward_v1','threshold':.75,'volume_shock_min':.25,
+MANIFEST={'strategy_version':'volume_reversal_forward_v2','threshold':.75,'volume_shock_min':.25,
     'range_split':.5,'daily_vol_floor':.001,'allocation':1.,'entry_delays_minutes':[0,5],
     'exit':'last regular-session minute close','cost_bps_per_side':[10,20,50],
     'deadline_minutes_before_open':5,'vendor_daily_finality_buffer_minutes':90,
+    'source_snapshot_policy':'Prior completed trading session as first seen after 21:30 New York; later vendor revisions remain possible',
+    'forward_first_target':'2026-11-05',
     'pairs':['semiconductors','semiconductors2','smallcap','nasdaq3'],
     'status':'UNVALIDATED_PAPER_CANDIDATE_NO_ORDERS'}
 
-FORWARD_FIRST_TARGET='2026-11-03'
+FORWARD_FIRST_TARGET=MANIFEST['forward_first_target']
 
 
 def latest_expected_started_session(schedule,now):
@@ -29,11 +31,11 @@ def target_session(schedule,now):
     target=eligible.index[0];pos=schedule.index.get_loc(target)
     if pos<60:raise ValueError('Insufficient scheduled history')
     prior=schedule.index[pos-1]
-    # A retrospective vendor daily bar may include trades beyond the regular
-    # close. Wait until the full prior NY date plus a finality buffer has passed.
+    # This is a first-seen evening snapshot convention, not a claim of vendor
+    # finality. Waiting until midnight prevented evening runs from recording.
     prior_date=pd.Timestamp(prior).date()
     final_after=(pd.Timestamp(prior_date).tz_localize('America/New_York')+
-                 pd.DateOffset(days=1)+pd.Timedelta(minutes=90)).tz_convert('UTC')
+                 pd.Timedelta(hours=20,minutes=90)).tz_convert('UTC')
     return target,prior,schedule.index[pos-60:pos],final_after
 
 
@@ -53,7 +55,8 @@ def validate_proxy(raw,symbol,expected_dates):
 
 def freeze_signal(raw,pair_name,pair,schedule,now,code_sha):
     now=pd.Timestamp(now);target,prior,history,final_after=target_session(schedule,now)
-    if now<final_after:raise ValueError('Prior vendor daily bar is not yet eligible as finalized')
+    if str(pd.Timestamp(target).date())<FORWARD_FIRST_TARGET:raise ValueError('Before this forward version activation date')
+    if now<final_after:raise ValueError('Prior trading-session snapshot is not yet eligible')
     opening=schedule.loc[target,'open'];closing=schedule.loc[target,'close']
     expected=[pd.Timestamp(d).date() for d in history]
     x=validate_proxy(raw,pair.proxy,expected)

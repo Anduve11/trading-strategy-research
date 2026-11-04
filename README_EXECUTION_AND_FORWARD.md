@@ -53,7 +53,10 @@ have already been inspected; no fresh historical holdout is claimed.
 
 ## Prospective paper ledger
 
-Freeze `volume_reversal_forward_v1`: prior proxy return beyond 0.75 daily
+Current version is `volume_reversal_forward_v2`, first target November 5,
+2026. Version 1 recorded no predictions for November 3-4; those missed dates
+remain explicit and are never backfilled. Signal thresholds are unchanged:
+prior proxy return beyond 0.75 daily
 volatility, proxy volume above its trailing 20-session mean by more than 25%,
 prior close below/above midpoint of its trailing 20-close range for bull/inverse.
 Use actual prior data and a 0.1% daily volatility floor. Track the same four
@@ -61,20 +64,23 @@ pairs with two fixed timing scenarios, 0/5-minute entry and last regular-minute
 close. Cash is explicitly recorded when no signal qualifies. The candidate was
 chosen after inspecting history and starts **unvalidated**.
 
-Workflow `.github/workflows/paper_signal_ledger.yml` now attempts weekdays at
-12:17 and 12:47 UTC, before the US regular open in standard and daylight time,
-and checks reconciliation at 23:17 UTC. GitHub schedules
+Workflow `.github/workflows/paper_signal_ledger.yml` attempts 02:47 UTC
+Tuesday-Saturday for the preceding US trading evening, 12:17 and 12:47 UTC
+weekdays before the regular open, and reconciliation at 23:17 UTC. GitHub schedules
 can run late; the timestamp/deadline check, not the cron label, determines
 prospective eligibility. It also runs on an explicit dispatch or relevant push.
 
 Choose the next exchange session at least five minutes after current time. If
-the immediately preceding daily bar has not passed New York midnight plus a
-90-minute finality buffer, skip prediction creation. Never substitute an older
+the immediately preceding trading session has not passed 21:30 New York time,
+skip prediction creation. This is an observed evening snapshot after regular
+and usual extended hours, not a guarantee of vendor daily-bar finality.
+Never substitute an older
 bar, use an unfinished current-day bar, or backfill a past prediction. Demand
 all 60 scheduled historical proxy sessions with no extra dates or missing rows.
 All features use that completed history; record cash when range/volume gives
-no usable signal. The finality buffer is an operational convention, not a
-guarantee that the vendor will never revise a bar.
+no usable signal. Freeze exactly the first-seen values and request no later
+than the lesser of the prior calendar-date boundary and current time minus
+20 minutes. Future vendor revisions never rewrite that prediction.
 
 Save one prediction per strategy version/pair/target date to a private path with
 POST-only writes. Existing records are left unchanged. Records include created
@@ -103,9 +109,14 @@ The November 3 review found no scheduled pre-entry run or stored prediction
 for that session. Its exact scheduler cause was not established. Do not
 backfill that missed session. The off-hour retry schedule is a reliability
 mitigation, not evidence that the scheduler is fixed. A new health check
-records whether the latest started session (beginning November 3) has each
+records whether the latest started session (beginning November 5 for v2) has each
 required prediction and how many records exist for the upcoming target.
 It is read-only for started sessions and never creates a past prediction.
+Version 2 widens the eligible capture period to the preceding evening, with
+its own private object namespace and activation date. The legacy field
+`source_final_after` now denotes the earliest allowed snapshot time; it is
+not a vendor finality assertion. Recording the first actual pre-entry snapshot
+still needs to be verified; a code change alone supplies no forward evidence.
 
 Primary API documentation:
 

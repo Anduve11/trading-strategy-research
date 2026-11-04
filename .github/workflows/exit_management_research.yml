@@ -1,0 +1,55 @@
+name: Partial and trailing exits (paper-only)
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['trade_lab/exit_management.py', 'scripts/exit_management_research.py', '.github/workflows/exit_management_research.yml']
+permissions:
+  contents: read
+concurrency:
+  group: market-edge-exit-management-v1
+  cancel-in-progress: false
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    env:
+      OMP_NUM_THREADS: '1'
+      OPENBLAS_NUM_THREADS: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: requirements-ml.txt
+      - run: python -m pip install -r requirements-ml.txt pytest
+      - run: python -m pytest -q
+  research:
+    needs: tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        pair: [semiconductors, nasdaq3, smallcap]
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+      ALPACA_KEY_ID: ${{ secrets.ALPACA_KEY_ID }}
+      ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
+      OMP_NUM_THREADS: '1'
+      OPENBLAS_NUM_THREADS: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: requirements-ml.txt
+      - run: python -m pip install -r requirements-ml.txt
+      - run: python scripts/exit_management_research.py --pair ${{ matrix.pair }}
