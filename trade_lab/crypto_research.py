@@ -39,7 +39,7 @@ class Candidate:
 
 
 def default_candidates() -> list[Candidate]:
-    """Return fixed SMA, Donchian, and time-series momentum candidates."""
+    """Return fixed SMA, Donchian, Bollinger, and time-series momentum candidates."""
     return [
         Candidate("SMA trend 20d", "sma", (20,)),
         Candidate("SMA trend 50d", "sma", (50,)),
