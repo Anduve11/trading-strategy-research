@@ -296,10 +296,10 @@ def main() -> None:
     if not cfb.empty:histories["NCAAF"]=cfb
     model_results={}
     training_errors={}
-    with st.spinner("Training five model candidates on recent development seasons and a separate holdout…"):
+    with st.spinner("Training three fast model candidates on a development season and a separate holdout…"):
         for sport,games in histories.items():
             try:
-                model_results[sport]=cached_model(sport,games,"features_20261104_fast_walkforward_v2")
+                model_results[sport]=cached_model(sport,games,"features_20261104_fast_walkforward_v3")
             except Exception as exc:
                 training_errors[sport]=str(exc)
 
@@ -402,7 +402,7 @@ def main() -> None:
 
     with analysis_tab:
         st.subheader("Out-of-sample model comparison")
-        st.write("Five candidates cover market-only and full-feature logistic regression, random forest, extra trees, and histogram gradient boosting. Features include opening-to-current line movement, recent scoring and ATS form, conference/division status, point-in-time Elo, rest, and travel. Candidates are walk-forward scored on the two most recent eligible development seasons plus the latest complete season as an untouched holdout. Final live models are then fit on all completed games. Tree counts and the candidate set are sized for Streamlit's free CPU limits.")
+        st.write("Three candidates cover a market-only logistic baseline, full-feature logistic regression, and histogram gradient boosting. Features include opening-to-current line movement, recent scoring and ATS form, conference/division status, point-in-time Elo, rest, and travel. Candidates are scored on the latest eligible development season plus the latest complete season as an untouched holdout. Final live models are then fit on all completed games. This quick weekly path is sized for Streamlit's free CPU limits.")
         for sport,(_,pred,metrics,selected,fit) in model_results.items():
             st.markdown(f"#### {sport} · selected: **{selected}**")
             st.caption(f"Training games: {fit['history_rows']:,} · seasons: {', '.join(map(str,fit['seasons']))} · untouched holdout: {fit['holdout_season']}")
