@@ -296,10 +296,10 @@ def main() -> None:
     if not cfb.empty:histories["NCAAF"]=cfb
     model_results={}
     training_errors={}
-    with st.spinner("Training twelve model candidates and grading them with season-by-season holdouts…"):
+    with st.spinner("Training 12 candidates on recent development seasons and a separate holdout…"):
         for sport,games in histories.items():
             try:
-                model_results[sport]=cached_model(sport,games,"features_20261030_v6")
+                model_results[sport]=cached_model(sport,games,"features_20261104_fast_walkforward_v1")
             except Exception as exc:
                 training_errors[sport]=str(exc)
 
@@ -402,7 +402,7 @@ def main() -> None:
 
     with analysis_tab:
         st.subheader("Out-of-sample model comparison")
-        st.write("Twelve candidates include a market-only logistic baseline, regularized logistic models, random forest, extra trees, histogram gradient boosting, classic gradient boosting, and AdaBoost. Features include opening-to-current line movement, recent scoring and ATS form, conference/division status, point-in-time Elo, rest, and travel. Each test season is fit only on earlier seasons. Candidate selection uses development seasons; the latest complete season is reserved as the holdout.")
+        st.write("Twelve candidates include a market-only logistic baseline, regularized logistic models, random forest, extra trees, histogram gradient boosting, classic gradient boosting, and AdaBoost. Features include opening-to-current line movement, recent scoring and ATS form, conference/division status, point-in-time Elo, rest, and travel. To keep cold starts quick, candidates are walk-forward scored on the two most recent eligible development seasons plus the latest complete season as an untouched holdout. Final live models are then fit on all completed games; tree counts are reduced for faster startup.")
         for sport,(_,pred,metrics,selected,fit) in model_results.items():
             st.markdown(f"#### {sport} · selected: **{selected}**")
             st.caption(f"Training games: {fit['history_rows']:,} · seasons: {', '.join(map(str,fit['seasons']))} · untouched holdout: {fit['holdout_season']}")
