@@ -505,15 +505,15 @@ def walk_forward_model(study: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame,
         "Market-only logistic": make_pipeline(SimpleImputer(strategy="median",keep_empty_features=True), StandardScaler(), LogisticRegression(C=.2, max_iter=1200)),
         "Logistic C=.05": make_pipeline(SimpleImputer(strategy="median",keep_empty_features=True), StandardScaler(), LogisticRegression(C=.05, max_iter=1200)),
         "Logistic C=.5": make_pipeline(SimpleImputer(strategy="median",keep_empty_features=True), StandardScaler(), LogisticRegression(C=.5, max_iter=1200)),
-        "Random forest leaf=8": make_pipeline(SimpleImputer(strategy="median",keep_empty_features=True), RandomForestClassifier(n_estimators=200, min_samples_leaf=8, max_features=.8, class_weight="balanced_subsample", random_state=17, n_jobs=-1)),
-        "Random forest leaf=20": make_pipeline(SimpleImputer(strategy="median",keep_empty_features=True), RandomForestClassifier(n_estimators=200, min_samples_leaf=20, max_features=.8, class_weight="balanced_subsample", random_state=18, n_jobs=-1)),
-        "Extra trees leaf=8": make_pipeline(SimpleImputer(strategy="median",keep_empty_features=True), ExtraTreesClassifier(n_estimators=200, min_samples_leaf=8, max_features=.8, class_weight="balanced", random_state=23, n_jobs=-1)),
-        "Extra trees leaf=20": make_pipeline(SimpleImputer(strategy="median",keep_empty_features=True), ExtraTreesClassifier(n_estimators=200, min_samples_leaf=20, max_features=.8, class_weight="balanced", random_state=24, n_jobs=-1)),
-        "Hist gradient leaves=6": make_pipeline(SimpleImputer(strategy="median",keep_empty_features=True), HistGradientBoostingClassifier(max_iter=140, learning_rate=.05, l2_regularization=2., max_leaf_nodes=6, random_state=31)),
-        "Hist gradient leaves=12": make_pipeline(SimpleImputer(strategy="median",keep_empty_features=True), HistGradientBoostingClassifier(max_iter=140, learning_rate=.05, l2_regularization=2., max_leaf_nodes=12, random_state=32)),
-        "Gradient boost depth=1": make_pipeline(SimpleImputer(strategy="median",keep_empty_features=True), GradientBoostingClassifier(n_estimators=100,learning_rate=.03,max_depth=1,min_samples_leaf=12,random_state=41)),
-        "Gradient boost depth=2": make_pipeline(SimpleImputer(strategy="median",keep_empty_features=True), GradientBoostingClassifier(n_estimators=100,learning_rate=.03,max_depth=2,min_samples_leaf=12,random_state=42)),
-        "AdaBoost stumps": make_pipeline(SimpleImputer(strategy="median",keep_empty_features=True), AdaBoostClassifier(n_estimators=100,learning_rate=.03,random_state=43)),
+        "Random forest leaf=8": make_pipeline(SimpleImputer(strategy="median",keep_empty_features=True), RandomForestClassifier(n_estimators=100, min_samples_leaf=8, max_features=.8, class_weight="balanced_subsample", random_state=17, n_jobs=-1)),
+        "Random forest leaf=20": make_pipeline(SimpleImputer(strategy="median",keep_empty_features=True), RandomForestClassifier(n_estimators=100, min_samples_leaf=20, max_features=.8, class_weight="balanced_subsample", random_state=18, n_jobs=-1)),
+        "Extra trees leaf=8": make_pipeline(SimpleImputer(strategy="median",keep_empty_features=True), ExtraTreesClassifier(n_estimators=100, min_samples_leaf=8, max_features=.8, class_weight="balanced", random_state=23, n_jobs=-1)),
+        "Extra trees leaf=20": make_pipeline(SimpleImputer(strategy="median",keep_empty_features=True), ExtraTreesClassifier(n_estimators=100, min_samples_leaf=20, max_features=.8, class_weight="balanced", random_state=24, n_jobs=-1)),
+        "Hist gradient leaves=6": make_pipeline(SimpleImputer(strategy="median",keep_empty_features=True), HistGradientBoostingClassifier(max_iter=80, learning_rate=.05, l2_regularization=2., max_leaf_nodes=6, random_state=31)),
+        "Hist gradient leaves=12": make_pipeline(SimpleImputer(strategy="median",keep_empty_features=True), HistGradientBoostingClassifier(max_iter=80, learning_rate=.05, l2_regularization=2., max_leaf_nodes=12, random_state=32)),
+        "Gradient boost depth=1": make_pipeline(SimpleImputer(strategy="median",keep_empty_features=True), GradientBoostingClassifier(n_estimators=75,learning_rate=.03,max_depth=1,min_samples_leaf=12,random_state=41)),
+        "Gradient boost depth=2": make_pipeline(SimpleImputer(strategy="median",keep_empty_features=True), GradientBoostingClassifier(n_estimators=75,learning_rate=.03,max_depth=2,min_samples_leaf=12,random_state=42)),
+        "AdaBoost stumps": make_pipeline(SimpleImputer(strategy="median",keep_empty_features=True), AdaBoostClassifier(n_estimators=75,learning_rate=.03,random_state=43)),
     }
     feature_map={name:(MARKET_FEATURES if name=="Market-only logistic" else FEATURES) for name in models}
     d = study.dropna(subset=["home_cover", "home_line", "season"]).copy()
@@ -521,8 +521,27 @@ def walk_forward_model(study: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame,
     predictions = []
     if len(years) < 3:
         return pd.DataFrame(), pd.DataFrame(), "Not enough seasons", {}
-    min_train_years = 2
-    for year in years[min_train_years:]:
+
+    # The former all-years walk-forward loop refit every candidate in five or
+    # more folds, then fit them all again for the live board. On a Streamlit
+    # cold start this can take several minutes. Keep a genuine expanding-window
+    # check, but limit it to the two latest eligible development seasons and
+    # the latest complete holdout season. The holdout stays out of selection.
+    completed=[]
+    for yr,g in study.groupby("season"):
+        scheduled=g[["home_score","away_score"]].notna().all(axis=1).mean()
+        if scheduled>=.98:completed.append(int(yr))
+    holdout_year=max(completed) if completed else years[-1]
+    eligible_dev_years=[]
+    for year in years:
+        if year >= holdout_year:
+            continue
+        if len(d[d.season < year]) >= 250:
+            eligible_dev_years.append(year)
+    development_years=eligible_dev_years[-2:]
+    fold_years=sorted(set(development_years+[holdout_year]))
+
+    for year in fold_years:
         tr, te = d[d.season < year], d[d.season == year]
         if len(tr) < 250 or te.empty: continue
         for name, model in models.items():
@@ -537,13 +556,9 @@ def walk_forward_model(study: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame,
             predictions.append(out)
     if not predictions: return pd.DataFrame(), pd.DataFrame(), "No valid folds", {}
     pred = pd.concat(predictions, ignore_index=True)
-    # Model choice uses development seasons only. The most recent season remains a holdout.
-    completed=[]
-    for yr,g in study.groupby("season"):
-        scheduled=g[["home_score","away_score"]].notna().all(axis=1).mean()
-        if scheduled>=.98:completed.append(int(yr))
-    holdout_year=max(completed) if completed else years[-1]
-    dev = pred[pred.season < holdout_year]
+    # Model choice uses only the selected development folds. The latest
+    # complete season remains an untouched holdout for candidate comparison.
+    dev = pred[pred.season.isin(development_years)]
     metrics = []
     for name, g in pred.groupby("model"):
         y = g.home_cover.astype(float).to_numpy()
