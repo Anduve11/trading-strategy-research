@@ -366,20 +366,24 @@ def add_pregame_features(games: pd.DataFrame) -> pd.DataFrame:
     state:dict[str,list[dict[str,Any]]]={}
     coach_state:dict[str,list[tuple[float,float]]]={}
     elo_state:dict[str,list[tuple[pd.Timestamp,float]]]={}
+    ats_counts:dict[str,int]={}
+    ats_covers:dict[str,int]={}
+    season_ats_counts:dict[tuple[str,int],int]={}
+    season_ats_covers:dict[tuple[str,int],int]={}
     last_coach:dict[str,str]={}
     feature_rows=[]
-    for _,g in d.iterrows():
-        day=pd.to_datetime(g.game_date,errors="coerce")
-        season=int(g.season) if pd.notna(g.season) else None
-        lat=pd.to_numeric(pd.Series([g.get("venue_lat")]),errors="coerce").iloc[0]
-        lon=pd.to_numeric(pd.Series([g.get("venue_lon")]),errors="coerce").iloc[0]
-        elev=pd.to_numeric(pd.Series([g.get("venue_elevation")]),errors="coerce").iloc[0]
+    # Records avoid the repeated Series construction in iterrows. ATS rates
+    # are maintained incrementally below instead of rescanning every team's
+    # complete game history for every new game.
+    for g in d.to_dict("records"):
+        day=pd.to_datetime(g.get("game_date"),errors="coerce")
+        season=int(g.get("season")) if pd.notna(g.get("season")) else None
+        lat=pd.to_numeric(g.get("venue_lat"),errors="coerce")
+        lon=pd.to_numeric(g.get("venue_lon"),errors="coerce")
+        elev=pd.to_numeric(g.get("venue_elevation"),errors="coerce")
         pair=[]
         elo_pair={}
-        prior_ats_rates={}
-        for t,history in state.items():
-            vals=[x["ats_margin"] for x in history if np.isfinite(x.get("ats_margin",np.nan))]
-            if vals:prior_ats_rates[t]=float(np.mean(np.asarray(vals)>0))
+        prior_ats_rates={t:ats_covers[t]/n for t,n in ats_counts.items() if n}
         for side,opposite in (("home","away"),("away","home")):
             team=str(g.get(f"{side}_team",""));coach=_coach_name(g.get(f"{side}_coach",""))
             prior=[x for x in state.get(team,[]) if pd.isna(day) or x["date"]<day]
@@ -389,7 +393,6 @@ def add_pregame_features(games: pd.DataFrame) -> pd.DataFrame:
             points_for=np.array([x["pf"] for x in recent],dtype=float)
             points_against=np.array([x["pa"] for x in recent],dtype=float)
             ats=np.array([x["ats_margin"] for x in recent if np.isfinite(x["ats_margin"])],dtype=float)
-            all_ats=np.array([x["ats_margin"] for x in prior if np.isfinite(x.get("ats_margin",np.nan))],dtype=float)
             rest=max(0,(day-prior[-1]["date"]).days) if prior and pd.notna(day) else 7
             prior_this_season=[x for x in prior if season is not None and x["season"]==season]
             bye=bool(prior_this_season and 13<=((day-prior_this_season[-1]["date"]).days)<=24) if pd.notna(day) else False
@@ -432,8 +435,8 @@ def add_pregame_features(games: pd.DataFrame) -> pd.DataFrame:
                 "elo":float(elo),
                 "ats_cover5":float(np.mean(ats[-5:]>0)) if len(ats) else .5,
                 "ats_games5":float(min(5,len(ats))),
-                "ats_cover_season":float(np.mean(all_ats[np.array([x["season"]==season for x in prior if np.isfinite(x.get("ats_margin",np.nan))])]>0)) if season is not None and np.any(np.array([x["season"]==season for x in prior if np.isfinite(x.get("ats_margin",np.nan))])) else .5,
-                "ats_rank":float(1+sum(rate>np.mean(all_ats>0) for other,rate in prior_ats_rates.items() if other!=team)) if len(all_ats) else float(len(prior_ats_rates)+1),
+                "ats_cover_season":float(season_ats_covers.get((team,season),0)/season_ats_counts[(team,season)]) if season is not None and season_ats_counts.get((team,season),0) else .5,
+                "ats_rank":float(1+sum(rate>ats_covers.get(team,0)/ats_counts[team] for other,rate in prior_ats_rates.items() if other!=team)) if ats_counts.get(team,0) else float(len(prior_ats_rates)+1),
             }
             streak=0
             for result in ats[::-1]:
@@ -443,15 +446,15 @@ def add_pregame_features(games: pd.DataFrame) -> pd.DataFrame:
             # Rolling CFBD box-score efficiency. These are computed from each
             # team's prior games only; the current game's stats enter afterward.
             for key in ["yards","pass_yards","rush_yards","turnovers","sacks","third_down_eff","red_zone_eff"]:
-                vals=np.array([pd.to_numeric(pd.Series([x.get(key,np.nan)]),errors="coerce").iloc[0] for x in recent],dtype=float)
+                vals=np.array([x.get(key,np.nan) for x in recent],dtype=float)
                 vals=vals[np.isfinite(vals)]
                 stats[f"{key}3"]=float(np.mean(vals[-3:])) if len(vals) else np.nan
             pair.append(stats)
         feature_rows.append(pair)
         hs,as_=g.get("home_score"),g.get("away_score")
         if pd.notna(hs) and pd.notna(as_) and pd.notna(day):
-            home,away=str(g.home_team),str(g.away_team)
-            hline=float(g.home_line) if pd.notna(g.home_line) else np.nan
+            home,away=str(g.get("home_team","")),str(g.get("away_team",""))
+            hline=float(g.get("home_line")) if pd.notna(g.get("home_line")) else np.nan
             line_res=float(hs-as_+hline) if np.isfinite(hline) else np.nan
             for team,side,pf,pa,margin,win,ats_margin in (
                 (home,"home",float(hs),float(as_),float(hs-as_),float(hs>as_),line_res),
@@ -460,8 +463,15 @@ def add_pregame_features(games: pd.DataFrame) -> pd.DataFrame:
                 coach=_coach_name(g.get(f"{side}_coach",""))
                 record={"date":day,"season":season,"pf":pf,"pa":pa,"margin":margin,"win":win,"ats_margin":ats_margin,"lat":lat,"lon":lon,"elev":elev}
                 for key in ["yards","pass_yards","rush_yards","turnovers","sacks","third_down_eff","red_zone_eff"]:
-                    record[key]=pd.to_numeric(pd.Series([g.get(f"{side}_{key}",np.nan)]),errors="coerce").iloc[0]
+                    record[key]=pd.to_numeric(g.get(f"{side}_{key}",np.nan),errors="coerce")
                 state.setdefault(team,[]).append(record)
+                if np.isfinite(ats_margin):
+                    ats_counts[team]=ats_counts.get(team,0)+1
+                    ats_covers[team]=ats_covers.get(team,0)+int(ats_margin>0)
+                    if season is not None:
+                        season_key=(team,season)
+                        season_ats_counts[season_key]=season_ats_counts.get(season_key,0)+1
+                        season_ats_covers[season_key]=season_ats_covers.get(season_key,0)+int(ats_margin>0)
                 if coach:
                     coach_state.setdefault(coach,[]).append((win,ats_margin if np.isfinite(ats_margin) else 0.))
                     last_coach[team]=coach
