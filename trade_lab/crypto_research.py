@@ -46,6 +46,7 @@ def default_candidates() -> list[Candidate]:
         Candidate("SMA trend 100d", "sma", (100,)),
         Candidate("Donchian 20d/10d", "donchian", (20, 10)),
         Candidate("Donchian 55d/20d", "donchian", (55, 20)),
+        Candidate("Bollinger reversion 20d/2sd", "bollinger", (20, 2)),
         Candidate("TS momentum 20d", "tsmom", (20,)),
         Candidate("TS momentum 60d", "tsmom", (60,)),
         Candidate("TS momentum 120d", "tsmom", (120,)),
@@ -265,13 +266,28 @@ def position_signal(bars: pd.DataFrame, candidate: Candidate, granularity_second
     if bars["symbol"].nunique() != 1:
         raise ValueError("Calculate one product's signal at a time.")
     if not candidate.parameters or any(int(x) <= 0 for x in candidate.parameters):
-        raise ValueError("Candidate lookbacks must be positive whole days.")
+        raise ValueError("Candidate parameters must be positive whole numbers.")
     bars_per_day = _bars_per_day(granularity_seconds)
     close = bars["close"].astype(float)
     if candidate.kind == "tsmom" and len(candidate.parameters) == 1:
         window = candidate.parameters[0] * bars_per_day
         prior_close = close.shift(window)
         return (close > prior_close).astype(float).rename("signal")
+    if candidate.kind == "bollinger" and len(candidate.parameters) == 2:
+        window = candidate.parameters[0] * bars_per_day
+        sigma_multiple = candidate.parameters[1]
+        average = close.rolling(window=window, min_periods=window).mean()
+        deviation = close.rolling(window=window, min_periods=window).std(ddof=0)
+        lower_band = average - sigma_multiple * deviation
+        desired = np.zeros(len(bars), dtype=float)
+        in_position = False
+        for i, price in enumerate(close.to_numpy(dtype=float)):
+            if not in_position and pd.notna(lower_band.iloc[i]) and price < float(lower_band.iloc[i]):
+                in_position = True
+            elif in_position and pd.notna(average.iloc[i]) and price > float(average.iloc[i]):
+                in_position = False
+            desired[i] = 1.0 if in_position else 0.0
+        return pd.Series(desired, index=bars.index, name="signal")
     if candidate.kind == "sma" and len(candidate.parameters) == 1:
         window = candidate.parameters[0] * bars_per_day
         average = close.rolling(window=window, min_periods=window).mean()
