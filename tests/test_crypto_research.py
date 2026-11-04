@@ -101,6 +101,21 @@ def test_sma_signal_is_filled_at_the_next_bar_open():
     assert result["trades"].iloc[0].entry_time == bars.timestamp.iloc[3]
 
 
+def test_time_series_momentum_uses_trailing_return_and_next_bar_fill():
+    bars = make_bars([100, 99, 101, 100, 102, 102], opens=[100] * 6)
+    candidate = Candidate("TS momentum 2d", "tsmom", (2,))
+    signals = position_signal(bars, candidate, 86400)
+    result = backtest_long_cash(
+        bars, candidate, 86400, cost_bps_each_side=0,
+        allocation_pct=100, initial_capital=10000,
+    )
+
+    assert signals.iloc[1] == 0
+    assert signals.iloc[2] == 1
+    assert result["equity_curve"].position_pct.iloc[2] == 0
+    assert result["trades"].iloc[0].entry_time == bars.timestamp.iloc[3]
+
+
 def test_donchian_entry_uses_prior_bars_not_current_high():
     bars = make_bars([100, 100, 102, 101], highs=[101, 101, 200, 103])
     candidate = Candidate("Donchian 2d/1d", "donchian", (2, 1))
