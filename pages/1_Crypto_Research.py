@@ -26,9 +26,9 @@ st.warning(
 )
 
 st.markdown(
-    "The first candidate set is deliberately small: 20/50/100-day simple moving-average trends and "
-    "20/10-day and 55/20-day Donchian breakouts. Signals use completed candles and execute at the next "
-    "candle open. Buy-and-hold is shown as a benchmark."
+    "The predeclared candidates compare 20/50/100-day simple moving-average trends, 20/10-day and "
+    "55/20-day Donchian breakouts, and 20/60/120/240-day time-series momentum. Signals use completed "
+    "candles and execute at the next candle open. Buy-and-hold is shown as a benchmark."
 )
 
 
