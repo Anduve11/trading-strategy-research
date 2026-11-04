@@ -496,24 +496,17 @@ MARKET_FEATURES=["home_line","home_line_open","line_move_home","total_line","hom
 
 
 def walk_forward_model(study: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, str, dict[str, Any]]:
-    from sklearn.ensemble import AdaBoostClassifier, ExtraTreesClassifier, GradientBoostingClassifier, HistGradientBoostingClassifier, RandomForestClassifier
+    from sklearn.ensemble import ExtraTreesClassifier, HistGradientBoostingClassifier, RandomForestClassifier
     from sklearn.impute import SimpleImputer
     from sklearn.linear_model import LogisticRegression
     from sklearn.pipeline import make_pipeline
     from sklearn.preprocessing import StandardScaler
     models = {
         "Market-only logistic": make_pipeline(SimpleImputer(strategy="median",keep_empty_features=True), StandardScaler(), LogisticRegression(C=.2, max_iter=1200)),
-        "Logistic C=.05": make_pipeline(SimpleImputer(strategy="median",keep_empty_features=True), StandardScaler(), LogisticRegression(C=.05, max_iter=1200)),
-        "Logistic C=.5": make_pipeline(SimpleImputer(strategy="median",keep_empty_features=True), StandardScaler(), LogisticRegression(C=.5, max_iter=1200)),
-        "Random forest leaf=8": make_pipeline(SimpleImputer(strategy="median",keep_empty_features=True), RandomForestClassifier(n_estimators=100, min_samples_leaf=8, max_features=.8, class_weight="balanced_subsample", random_state=17, n_jobs=-1)),
-        "Random forest leaf=20": make_pipeline(SimpleImputer(strategy="median",keep_empty_features=True), RandomForestClassifier(n_estimators=100, min_samples_leaf=20, max_features=.8, class_weight="balanced_subsample", random_state=18, n_jobs=-1)),
-        "Extra trees leaf=8": make_pipeline(SimpleImputer(strategy="median",keep_empty_features=True), ExtraTreesClassifier(n_estimators=100, min_samples_leaf=8, max_features=.8, class_weight="balanced", random_state=23, n_jobs=-1)),
-        "Extra trees leaf=20": make_pipeline(SimpleImputer(strategy="median",keep_empty_features=True), ExtraTreesClassifier(n_estimators=100, min_samples_leaf=20, max_features=.8, class_weight="balanced", random_state=24, n_jobs=-1)),
-        "Hist gradient leaves=6": make_pipeline(SimpleImputer(strategy="median",keep_empty_features=True), HistGradientBoostingClassifier(max_iter=80, learning_rate=.05, l2_regularization=2., max_leaf_nodes=6, random_state=31)),
-        "Hist gradient leaves=12": make_pipeline(SimpleImputer(strategy="median",keep_empty_features=True), HistGradientBoostingClassifier(max_iter=80, learning_rate=.05, l2_regularization=2., max_leaf_nodes=12, random_state=32)),
-        "Gradient boost depth=1": make_pipeline(SimpleImputer(strategy="median",keep_empty_features=True), GradientBoostingClassifier(n_estimators=75,learning_rate=.03,max_depth=1,min_samples_leaf=12,random_state=41)),
-        "Gradient boost depth=2": make_pipeline(SimpleImputer(strategy="median",keep_empty_features=True), GradientBoostingClassifier(n_estimators=75,learning_rate=.03,max_depth=2,min_samples_leaf=12,random_state=42)),
-        "AdaBoost stumps": make_pipeline(SimpleImputer(strategy="median",keep_empty_features=True), AdaBoostClassifier(n_estimators=75,learning_rate=.03,random_state=43)),
+        "Logistic C=.1": make_pipeline(SimpleImputer(strategy="median",keep_empty_features=True), StandardScaler(), LogisticRegression(C=.1, max_iter=800)),
+        "Random forest leaf=16": make_pipeline(SimpleImputer(strategy="median",keep_empty_features=True), RandomForestClassifier(n_estimators=60, min_samples_leaf=16, max_features=.8, class_weight="balanced_subsample", random_state=18, n_jobs=-1)),
+        "Extra trees leaf=16": make_pipeline(SimpleImputer(strategy="median",keep_empty_features=True), ExtraTreesClassifier(n_estimators=60, min_samples_leaf=16, max_features=.8, class_weight="balanced", random_state=24, n_jobs=-1)),
+        "Hist gradient leaves=6": make_pipeline(SimpleImputer(strategy="median",keep_empty_features=True), HistGradientBoostingClassifier(max_iter=60, learning_rate=.05, l2_regularization=2., max_leaf_nodes=6, random_state=31)),
     }
     feature_map={name:(MARKET_FEATURES if name=="Market-only logistic" else FEATURES) for name in models}
     d = study.dropna(subset=["home_cover", "home_line", "season"]).copy()
