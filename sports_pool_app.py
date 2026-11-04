@@ -112,7 +112,7 @@ def pick_explanation(row: pd.Series) -> str:
     side="home" if row.best_side==row.home_team else "away"
     other="away" if side=="home" else "home"
     other_team=row.away_team if side=="home" else row.home_team
-    parts=[f"The selected model estimates {row.best_cover_probability:.1%} ATS cover probability; {int(round(row.model_agreement*row.get('model_count',12)))} of {int(row.get('model_count',12))} models favor this side."]
+    parts=[f"The selected model estimates {row.best_cover_probability:.1%} ATS cover probability; {int(round(row.model_agreement*row.get('model_count',5)))} of {int(row.get('model_count',5))} models favor this side."]
     margin=pd.to_numeric(pd.Series([row.get(f"{side}_margin3")]),errors="coerce").iloc[0]
     opp_margin=pd.to_numeric(pd.Series([row.get(f"{other}_margin3")]),errors="coerce").iloc[0]
     games_seen=pd.to_numeric(pd.Series([row.get(f"{side}_games_seen")]),errors="coerce").iloc[0]
@@ -296,10 +296,10 @@ def main() -> None:
     if not cfb.empty:histories["NCAAF"]=cfb
     model_results={}
     training_errors={}
-    with st.spinner("Training 12 candidates on recent development seasons and a separate holdout…"):
+    with st.spinner("Training five model candidates on recent development seasons and a separate holdout…"):
         for sport,games in histories.items():
             try:
-                model_results[sport]=cached_model(sport,games,"features_20261104_fast_walkforward_v1")
+                model_results[sport]=cached_model(sport,games,"features_20261104_fast_walkforward_v2")
             except Exception as exc:
                 training_errors[sport]=str(exc)
 
@@ -402,7 +402,7 @@ def main() -> None:
 
     with analysis_tab:
         st.subheader("Out-of-sample model comparison")
-        st.write("Twelve candidates include a market-only logistic baseline, regularized logistic models, random forest, extra trees, histogram gradient boosting, classic gradient boosting, and AdaBoost. Features include opening-to-current line movement, recent scoring and ATS form, conference/division status, point-in-time Elo, rest, and travel. To keep cold starts quick, candidates are walk-forward scored on the two most recent eligible development seasons plus the latest complete season as an untouched holdout. Final live models are then fit on all completed games; tree counts are reduced for faster startup.")
+        st.write("Five candidates cover market-only and full-feature logistic regression, random forest, extra trees, and histogram gradient boosting. Features include opening-to-current line movement, recent scoring and ATS form, conference/division status, point-in-time Elo, rest, and travel. Candidates are walk-forward scored on the two most recent eligible development seasons plus the latest complete season as an untouched holdout. Final live models are then fit on all completed games. Tree counts and the candidate set are sized for Streamlit's free CPU limits.")
         for sport,(_,pred,metrics,selected,fit) in model_results.items():
             st.markdown(f"#### {sport} · selected: **{selected}**")
             st.caption(f"Training games: {fit['history_rows']:,} · seasons: {', '.join(map(str,fit['seasons']))} · untouched holdout: {fit['holdout_season']}")
