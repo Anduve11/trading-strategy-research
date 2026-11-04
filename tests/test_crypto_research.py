@@ -116,6 +116,22 @@ def test_time_series_momentum_uses_trailing_return_and_next_bar_fill():
     assert result["trades"].iloc[0].entry_time == bars.timestamp.iloc[3]
 
 
+def test_bollinger_reversion_enters_below_lower_band_and_exits_at_mean():
+    bars = make_bars([100] * 10 + [50, 120, 100], opens=[100] * 13)
+    candidate = Candidate("Bollinger reversion 10d/2sd", "bollinger", (10, 2))
+    signals = position_signal(bars, candidate, 86400)
+    result = backtest_long_cash(
+        bars, candidate, 86400, cost_bps_each_side=0,
+        allocation_pct=100, initial_capital=10000,
+    )
+
+    assert signals.iloc[9] == 0
+    assert signals.iloc[10] == 1
+    assert signals.iloc[11] == 0
+    assert result["trades"].iloc[0].entry_time == bars.timestamp.iloc[11]
+    assert result["trades"].iloc[0].exit_time == bars.timestamp.iloc[12]
+
+
 def test_donchian_entry_uses_prior_bars_not_current_high():
     bars = make_bars([100, 100, 102, 101], highs=[101, 101, 200, 103])
     candidate = Candidate("Donchian 2d/1d", "donchian", (2, 1))
