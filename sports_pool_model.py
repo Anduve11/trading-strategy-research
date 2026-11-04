@@ -496,7 +496,7 @@ MARKET_FEATURES=["home_line","home_line_open","line_move_home","total_line","hom
 
 
 def walk_forward_model(study: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, str, dict[str, Any]]:
-    from sklearn.ensemble import ExtraTreesClassifier, HistGradientBoostingClassifier, RandomForestClassifier
+    from sklearn.ensemble import HistGradientBoostingClassifier
     from sklearn.impute import SimpleImputer
     from sklearn.linear_model import LogisticRegression
     from sklearn.pipeline import make_pipeline
@@ -504,9 +504,7 @@ def walk_forward_model(study: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame,
     models = {
         "Market-only logistic": make_pipeline(SimpleImputer(strategy="median",keep_empty_features=True), StandardScaler(), LogisticRegression(C=.2, max_iter=1200)),
         "Logistic C=.1": make_pipeline(SimpleImputer(strategy="median",keep_empty_features=True), StandardScaler(), LogisticRegression(C=.1, max_iter=800)),
-        "Random forest leaf=16": make_pipeline(SimpleImputer(strategy="median",keep_empty_features=True), RandomForestClassifier(n_estimators=60, min_samples_leaf=16, max_features=.8, class_weight="balanced_subsample", random_state=18, n_jobs=-1)),
-        "Extra trees leaf=16": make_pipeline(SimpleImputer(strategy="median",keep_empty_features=True), ExtraTreesClassifier(n_estimators=60, min_samples_leaf=16, max_features=.8, class_weight="balanced", random_state=24, n_jobs=-1)),
-        "Hist gradient leaves=6": make_pipeline(SimpleImputer(strategy="median",keep_empty_features=True), HistGradientBoostingClassifier(max_iter=60, learning_rate=.05, l2_regularization=2., max_leaf_nodes=6, random_state=31)),
+        "Hist gradient leaves=6": make_pipeline(SimpleImputer(strategy="median",keep_empty_features=True), HistGradientBoostingClassifier(max_iter=50, learning_rate=.05, l2_regularization=2., max_leaf_nodes=6, random_state=31)),
     }
     feature_map={name:(MARKET_FEATURES if name=="Market-only logistic" else FEATURES) for name in models}
     d = study.dropna(subset=["home_cover", "home_line", "season"]).copy()
@@ -518,7 +516,7 @@ def walk_forward_model(study: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame,
     # The former all-years walk-forward loop refit every candidate in five or
     # more folds, then fit them all again for the live board. On a Streamlit
     # cold start this can take several minutes. Keep a genuine expanding-window
-    # check, but limit it to the two latest eligible development seasons and
+    # check, but limit it to the latest eligible development season and
     # the latest complete holdout season. The holdout stays out of selection.
     completed=[]
     for yr,g in study.groupby("season"):
@@ -531,7 +529,7 @@ def walk_forward_model(study: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame,
             continue
         if len(d[d.season < year]) >= 250:
             eligible_dev_years.append(year)
-    development_years=eligible_dev_years[-2:]
+    development_years=eligible_dev_years[-1:]
     fold_years=sorted(set(development_years+[holdout_year]))
 
     for year in fold_years:
