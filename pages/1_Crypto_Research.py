@@ -27,8 +27,9 @@ st.warning(
 
 st.markdown(
     "The predeclared candidates compare 20/50/100-day simple moving-average trends, 20/10-day and "
-    "55/20-day Donchian breakouts, and 20/60/120/240-day time-series momentum. Signals use completed "
-    "candles and execute at the next candle open. Buy-and-hold is shown as a benchmark."
+    "55/20-day Donchian breakouts, a 20-day/2-standard-deviation Bollinger mean-reversion rule, and "
+    "20/60/120/240-day time-series momentum. Signals use completed candles and execute at the next candle "
+    "open. Buy-and-hold is shown as a benchmark."
 )
 
 
