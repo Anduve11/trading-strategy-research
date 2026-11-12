@@ -772,8 +772,8 @@ def render_shop() -> None:
                 spell_id = spell_ids[pos]
                 spell = SPELLS[spell_id]
                 owned = spell_id in S["owned_spells"]
-                    charge_text = f"{spell.get('charge', 1)} correct answer{'s' if spell.get('charge', 1) != 1 else ''} to charge"
-                    kind_label = f"⚔️ {spell['power']} shield damage · {charge_text}" if spell["kind"] == "attack" else f"💚 Heal up to {spell['power']} hearts · {charge_text}"
+                charge_text = f"{spell.get('charge', 1)} correct answer{'s' if spell.get('charge', 1) != 1 else ''} to charge"
+                kind_label = f"⚔️ {spell['power']} shield damage · {charge_text}" if spell["kind"] == "attack" else f"💚 Heal up to {spell['power']} hearts · {charge_text}"
                 with col:
                     st.markdown(
                         f"<div class='spell-card'><div class='spell-icon'>{spell['emoji']}</div><div class='spell-name'>{spell['name']}</div><div class='spell-detail'>{spell['description']}<br><b>{kind_label}</b></div><span class='status-pill'>Cost: {spell['cost']} gems</span></div>",
