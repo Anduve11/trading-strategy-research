@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import base64
 import random
 import streamlit as st
 
@@ -68,7 +67,38 @@ div.stButton > button:disabled { color:#aaa8b7; background:#e7e6eb; border-color
 /* The map artwork is static SVG; actual Streamlit buttons are transparent, positioned hit areas over each castle. */
 .st-key-island_map { position:relative; height:580px; min-height:430px; overflow:hidden; border:7px solid white; border-radius:32px; box-shadow:0 16px 32px rgba(35,93,143,.2); background:#69cce5; margin:.45rem 0 1rem; }
 .st-key-island_map .map-art { position:absolute; inset:0; width:100%; height:100%; z-index:0; }
-.st-key-island_map .map-art img { width:100%; height:100%; display:block; object-fit:fill; }
+.map-art { color:#fff; }
+.island-sand,.island-land { position:absolute; left:-3%; right:-3%; bottom:-8%; height:80%; clip-path:polygon(0 40%,7% 28%,14% 34%,21% 18%,29% 26%,37% 8%,45% 22%,53% 20%,61% 31%,69% 12%,77% 23%,85% 13%,93% 31%,100% 20%,100% 100%,0 100%); }
+.island-sand { bottom:-11%; background:#e5c27b; }
+.island-land { background:linear-gradient(145deg,#d8f2a1 0%,#a4e17f 38%,#72c97d 100%); }
+.map-heading { position:absolute; top:3%; left:3.5%; font-size:1.5rem; font-weight:1000; letter-spacing:.13em; text-shadow:0 2px 4px #459db1; }
+.map-cloud { position:absolute; color:#fff; font-size:2.8rem; filter:drop-shadow(0 3px 2px rgba(47,144,175,.2)); }
+.map-cloud.one { left:35%; top:9%; }.map-cloud.two { right:12%; top:12%; }
+.map-wave { position:absolute; color:#d2f8ff; font-size:2.1rem; letter-spacing:.3rem; white-space:nowrap; opacity:.8; }
+.map-wave.one { left:3%; top:28%; }.map-wave.two { right:2%; bottom:6%; }
+.map-peak { position:absolute; width:0; height:0; border-left:47px solid transparent; border-right:47px solid transparent; border-bottom:92px solid #a9c6e0; filter:drop-shadow(0 5px 0 white); }
+.map-peak:after { content:''; position:absolute; left:-17px; top:12px; border-left:17px solid transparent; border-right:17px solid transparent; border-bottom:31px solid white; }
+.map-peak.peak-a { left:10%; top:30%; transform:scale(.9); }.map-peak.peak-b { right:12%; top:22%; transform:scale(1.05); }
+.map-tree { position:absolute; font-size:2.5rem; filter:drop-shadow(0 3px 2px rgba(37,94,61,.2)); }
+.map-tree.tree-a { left:21%; bottom:19%; }.map-tree.tree-b { left:69%; bottom:26%; }.map-tree.tree-c { left:73%; bottom:18%; font-size:2rem; }
+.map-river { position:absolute; left:36%; top:45%; width:17%; height:49%; border-left:13px solid #62c9e6; border-radius:50%; transform:rotate(7deg); opacity:.9; }
+.map-castle { position:absolute; width:130px; height:155px; transform:translate(-50%,-50%); z-index:1; text-align:center; color:#304366; }
+.map-castle-0 { left:12%; top:63%; }.map-castle-1 { left:31%; top:38%; }.map-castle-2 { left:50%; top:65%; }.map-castle-3 { left:69%; top:37%; }.map-castle-4 { left:88%; top:58%; }
+.castle-building { position:absolute; width:104px; height:93px; left:13px; top:23px; filter:drop-shadow(0 7px 3px rgba(51,89,63,.18)); }
+.castle-wall { position:absolute; bottom:0; left:21px; width:62px; height:53px; background:linear-gradient(150deg,#fff1bd,#e7d6aa); border:4px solid #625783; border-bottom-width:5px; border-radius:5px 5px 0 0; }
+.castle-tower { position:absolute; bottom:38px; width:33px; height:68px; background:linear-gradient(150deg,#fff0bd,var(--castle-color)); border:4px solid #625783; border-bottom:0; }
+.castle-tower:before { content:''; position:absolute; left:-5px; top:-21px; width:35px; height:22px; background:var(--castle-color); border:4px solid #625783; clip-path:polygon(0 100%,50% 0,100% 100%); }
+.castle-tower.left { left:7px; }.castle-tower.right { right:7px; }
+.castle-roof { position:absolute; top:3px; left:33px; width:36px; height:55px; background:linear-gradient(160deg,#fff3c9,var(--castle-color)); border:4px solid #625783; border-radius:16px 16px 0 0; }
+.castle-door { position:absolute; bottom:0; left:44px; width:17px; height:29px; background:#745540; border:3px solid #58486d; border-radius:11px 11px 0 0; }
+.castle-window { position:absolute; top:31px; left:17px; width:10px; height:13px; background:#bdefff; border:2px solid #554b73; border-radius:7px 7px 1px 1px; }.castle-window.right { left:auto; right:17px; }
+.castle-flag { position:absolute; right:12px; top:-20px; width:4px; height:30px; background:#55466f; }.castle-flag:after { content:''; position:absolute; top:0; left:3px; width:18px; height:11px; background:#ffd64e; clip-path:polygon(0 0,100% 50%,0 100%); }
+.castle-number { position:absolute; left:45px; top:-6px; z-index:2; width:40px; height:40px; border:4px solid #5c5078; border-radius:50%; background:#fff; color:#342d61; font-size:1.2rem; line-height:32px; font-weight:1000; box-shadow:0 3px 0 rgba(40,38,74,.14); }
+.castle-name { position:absolute; left:-20px; right:-20px; bottom:0; padding:.15rem .25rem; border-radius:999px; background:rgba(255,255,255,.88); font-size:.72rem; line-height:1.1; font-weight:1000; color:#304366; }
+.map-castle.locked { filter:grayscale(.8) saturate(.5); opacity:.72; }
+.map-castle.open { filter:drop-shadow(0 0 16px #fff38b); animation:castle-glow 1.6s ease-in-out infinite alternate; }
+.map-castle.done .castle-flag:after { background:#74d58d; }
+@keyframes castle-glow { to { filter:drop-shadow(0 0 22px #fff394); transform:translate(-50%,-52%) scale(1.035); } }
 .st-key-island_map [class*="st-key-castle_hit_"] { position:absolute!important; z-index:3; width:10%; height:17%; min-width:54px; }
 .st-key-island_map .st-key-castle_hit_0 { left:6.5%; top:54%; }
 .st-key-island_map .st-key-castle_hit_1 { left:25.5%; top:28%; }
@@ -78,7 +108,7 @@ div.stButton > button:disabled { color:#aaa8b7; background:#e7e6eb; border-color
 .st-key-island_map [class*="st-key-castle_hit_"] button { width:100%; height:100%; min-height:0; color:transparent!important; background:transparent!important; border:2px solid transparent!important; box-shadow:none!important; padding:0!important; font-size:0!important; }
 .st-key-island_map [class*="st-key-castle_hit_"] button:hover { background:rgba(255,240,120,.18)!important; border:3px solid rgba(255,255,255,.85)!important; box-shadow:0 0 24px 10px rgba(255,239,116,.55)!important; }
 .st-key-island_map [class*="st-key-castle_hit_"] button:disabled { opacity:0!important; }
-@media(max-width:720px) { .st-key-island_map { height:430px; } .hero { padding:1.35rem; } .hero h1 { font-size:1.75rem; } }
+@media(max-width:720px) { .st-key-island_map { height:430px; } .map-castle { transform:translate(-50%,-50%) scale(.72); } .map-heading {font-size:1.05rem}.hero { padding:1.35rem; } .hero h1 { font-size:1.75rem; } }
 .battle-shell { border-radius:30px; border:2px solid white; background:linear-gradient(145deg,#fff,#f8f5ff); box-shadow:0 12px 28px rgba(49,42,95,.1); padding:1rem; }
 .battle-title { color:#51497a; font-size:1.05rem; font-weight:900; }
 .battle-arena { --sky1:#b9eeff; --sky2:#72d6e9; --ground:#89d27f; position:relative; overflow:hidden; min-height:420px; border-radius:28px; border:5px solid white; box-shadow:inset 0 0 0 2px rgba(255,255,255,.45),0 12px 26px rgba(43,43,93,.15); background:linear-gradient(180deg,var(--sky1),var(--sky2) 64%,var(--ground) 64%,#5fb978); padding:1rem; }
@@ -288,20 +318,11 @@ def boss_svg(index: int, hurt: bool = False) -> str:
 
 
 def castle_svg(x: int, y: int, num: int, color: str, status: str, title: str) -> str:
-    shade = color if status != "locked" else "#83919a"
-    flag = "#ffd753" if status == "open" else ("#79d28b" if status == "done" else "#d2d7df")
-    return f"""<g class='castle {status}' transform='translate({x} {y})'>
-      <ellipse cx='0' cy='47' rx='67' ry='15' fill='rgba(40,104,73,.18)'/>
-      <path d='M-50 35 V-16 H-32 V-43 H-14 V-16 H14 V-43 H32 V-16 H50 V35Z' fill='{shade}' stroke='#4f4772' stroke-width='5' stroke-linejoin='round'/>
-      <path d='M-32 -43 L-23 -65 L-14 -43 M14 -43 L23 -65 L32 -43' fill='{shade}' stroke='#4f4772' stroke-width='5'/>
-      <path d='M-50 -16 L-42 -32 L-34 -16 M34 -16 L42 -32 L50 -16' fill='{shade}' stroke='#4f4772' stroke-width='5'/>
-      <path d='M-9 35 V8 Q0 -5 9 8 V35Z' fill='#fff4cc' stroke='#514879' stroke-width='4'/>
-      <rect x='-34' y='-4' width='12' height='13' rx='3' fill='#fff4cc'/><rect x='22' y='-4' width='12' height='13' rx='3' fill='#fff4cc'/>
-      <path d='M30 -56 V-87' stroke='#584778' stroke-width='4'/><path d='M31 -86 L57 -79 L31 -70Z' fill='{flag}'/>
-      <circle cx='0' cy='-104' r='19' fill='white' stroke='#514879' stroke-width='4'/><text x='0' y='-97' text-anchor='middle' font-size='22' font-weight='1000' fill='#3e356a'>{num}</text>
-      <text x='0' y='75' text-anchor='middle' font-size='19' font-weight='1000' fill='#304366'>{title}</text>
-      {"<path d='M-61 -28 L-49 -19 M50 -48 L62 -38' stroke='#fff5b8' stroke-width='5' stroke-linecap='round'/>" if status == "open" else ""}
-    </g>"""
+    return f"""<div class='map-castle map-castle-{num - 1} {status}' style='--castle-color:{color}'>
+      <div class='castle-number'>{num}</div><div class='castle-building'>
+      <div class='castle-wall'></div><div class='castle-tower left'></div><div class='castle-tower right'></div>
+      <div class='castle-roof'></div><div class='castle-window'></div><div class='castle-window right'></div><div class='castle-door'></div><div class='castle-flag'></div></div>
+      <div class='castle-name'>{title}</div></div>"""
 
 
 def island_map() -> str:
@@ -315,24 +336,13 @@ def island_map() -> str:
         else:
             status = "locked"
         castles.append(castle_svg(x, y, index + 1, castle["color"], status, castle["place"]))
-    svg = """<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 600' preserveAspectRatio='xMidYMid slice'>
-    <defs><linearGradient id='ocean' x1='0' y1='0' x2='0' y2='1'><stop stop-color='#7ce0ef'/><stop offset='1' stop-color='#39a9d8'/></linearGradient><linearGradient id='island' x1='0' y1='0' x2='0' y2='1'><stop stop-color='#d7f4a0'/><stop offset='1' stop-color='#75cb82'/></linearGradient></defs>
-    <rect width='1000' height='600' fill='url(#ocean)'/>
-    <g fill='none' stroke='#c5f6ff' stroke-width='8' stroke-linecap='round' opacity='.75'><path d='M25 113 Q68 91 112 113 T198 113'/><path d='M736 99 Q779 77 822 99 T908 99'/><path d='M793 521 Q836 499 879 521 T965 521'/><path d='M-10 472 Q30 450 70 472 T150 472'/></g>
-    <path d='M0 323 Q75 245 142 271 Q220 308 278 221 Q343 145 411 208 Q462 265 526 232 Q603 187 661 236 Q736 295 790 231 Q869 151 931 223 Q977 270 1000 260 L1000 600 L0 600Z' fill='#e6cc7e'/>
-    <path d='M0 308 Q75 230 142 256 Q220 293 278 206 Q343 130 411 193 Q462 250 526 217 Q603 172 661 221 Q736 280 790 216 Q869 136 931 208 Q977 255 1000 245 L1000 600 L0 600Z' fill='url(#island)' stroke='#60b877' stroke-width='8'/>
-    <path d='M453 253 C403 289 437 324 388 357 S390 425 445 432 S496 495 445 536' fill='none' stroke='#67cde4' stroke-width='18' stroke-linecap='round'/>
-    <path d='M447 254 C401 290 434 323 385 356 S390 422 443 432' fill='none' stroke='#c6f6ff' stroke-width='5' stroke-linecap='round'/>
-    <g fill='#a7c4df' stroke='white' stroke-width='7'><path d='M90 291 L146 188 L204 291Z'/><path d='M144 291 L198 216 L246 291Z'/><path d='M762 240 L821 130 L884 240Z'/><path d='M822 240 L873 172 L923 240Z'/></g>
-    <g fill='#fff'><path d='M125 229 L146 188 L169 229 L148 222Z'/><path d='M800 170 L821 130 L845 173 L820 164Z'/></g>
-    <g fill='#318c60'><path d='M218 458 l32 -80 32 80Z M250 474 l26 -68 26 68Z M188 481 l22 -57 23 57Z M727 415 l29 -72 30 72Z M757 434 l25 -63 26 63Z M696 440 l20 -51 20 51Z'/><rect x='244' y='449' width='14' height='29' fill='#8c6249'/><rect x='753' y='407' width='12' height='26' fill='#8c6249'/></g>
-    <g fill='#fff4ad'><circle cx='67' cy='210' r='8'/><circle cx='560' cy='133' r='7'/><circle cx='951' cy='120' r='8'/><circle cx='567' cy='500' r='6'/></g>
-    <g fill='#fff' opacity='.9'><path d='M340 82 q20 -24 40 0 q30 -16 40 12 h-85Z'/><path d='M676 82 q19 -23 38 0 q28 -16 40 12 h-82Z'/></g>
-    <text x='36' y='51' font-size='30' font-weight='1000' fill='white' letter-spacing='3'>THE STARWILDS</text>
-    <text x='764' y='565' font-size='20' font-weight='900' fill='white'>🌊 Sparkle Sea</text>
-    """ + "".join(castles) + "</svg>"
-    encoded_svg = base64.b64encode(svg.encode("utf-8")).decode("ascii")
-    return f"<div class='map-art'><img alt='A bright island with five numbered castles, mountains, forests, rivers and ocean' src='data:image/svg+xml;base64,{encoded_svg}'></div>"
+    return """<div class='map-art'>
+      <div class='map-heading'>THE STARWILDS</div><div class='map-cloud one'>☁️</div><div class='map-cloud two'>☁️</div>
+      <div class='map-wave one'>〰️　〰️　〰️</div><div class='map-wave two'>〰️　〰️　〰️</div>
+      <div class='island-sand'></div><div class='island-land'></div><div class='map-river'></div>
+      <div class='map-peak peak-a'></div><div class='map-peak peak-b'></div>
+      <div class='map-tree tree-a'>🌲</div><div class='map-tree tree-b'>🌲</div><div class='map-tree tree-c'>🌳</div>
+      """ + "".join(castles) + "</div>"
 
 
 def render_hero(title: str, subtitle: str, eyebrow: str = "The Starwilds") -> None:
