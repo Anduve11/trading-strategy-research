@@ -1,4 +1,4 @@
-"""A family-friendly, original math-adventure game built with Streamlit."""
+"""The Starwilds: a colorful math-powered wizard adventure for Kate and Lola."""
 
 from __future__ import annotations
 
@@ -7,278 +7,132 @@ import streamlit as st
 
 
 st.set_page_config(
-    page_title="The Wizard's Math Quest",
-    page_icon="🪄",
+    page_title="The Starwilds Wizard Quest",
+    page_icon="🏰",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
 
 MATH_LEVELS = {
-    1: {"title": "Tiny sums", "range": 5, "kind": "add", "summary": "Addition with numbers 0–5"},
-    2: {"title": "Little leaps", "range": 10, "kind": "add", "summary": "Addition with numbers 0–10"},
-    3: {"title": "Meadow sums", "range": 15, "kind": "add", "summary": "Addition with numbers 0–15"},
-    4: {"title": "Big bridges", "range": 20, "kind": "add", "summary": "Addition with numbers 0–20"},
-    5: {"title": "First takeaways", "range": 20, "kind": "mixed", "summary": "Addition and subtraction with numbers 0–20"},
-    6: {"title": "Silver sums", "range": 25, "kind": "mixed", "summary": "Addition and subtraction with numbers 0–25"},
-    7: {"title": "Forest numbers", "range": 30, "kind": "mixed", "summary": "Addition and subtraction with numbers 0–30"},
-    8: {"title": "Crystal challenge", "range": 40, "kind": "mixed", "summary": "Addition and subtraction with numbers 0–40"},
-    9: {"title": "Wizard's workshop", "range": 50, "kind": "mixed", "summary": "Addition and subtraction with numbers 0–50"},
-    10: {"title": "Maldred's challenge", "range": 50, "kind": "subtract", "summary": "Subtraction with numbers 0–50"},
+    1: {"label": "Tiny sums", "max": 5, "kind": "add", "summary": "Addition with numbers 0–5"},
+    2: {"label": "Little leaps", "max": 10, "kind": "add", "summary": "Addition with numbers 0–10"},
+    3: {"label": "Meadow sums", "max": 15, "kind": "add", "summary": "Addition with numbers 0–15"},
+    4: {"label": "Big bridges", "max": 20, "kind": "add", "summary": "Addition with numbers 0–20"},
+    5: {"label": "First takeaways", "max": 20, "kind": "mixed", "summary": "Addition and subtraction with numbers 0–20"},
+    6: {"label": "Silver sums", "max": 25, "kind": "mixed", "summary": "Addition and subtraction with numbers 0–25"},
+    7: {"label": "Forest numbers", "max": 30, "kind": "mixed", "summary": "Addition and subtraction with numbers 0–30"},
+    8: {"label": "Crystal challenge", "max": 40, "kind": "mixed", "summary": "Addition and subtraction with numbers 0–40"},
+    9: {"label": "Wizard's workshop", "max": 50, "kind": "mixed", "summary": "Addition and subtraction with numbers 0–50"},
+    10: {"label": "Maldred's challenge", "max": 50, "kind": "subtract", "summary": "Subtraction with numbers 0–50"},
 }
 
 
-QUESTS = [
-    {
-        "name": "Sunpetal Meadow",
-        "emoji": "🌻",
-        "boss": "Pebblehex",
-        "boss_emoji": "🧌",
-        "subtitle": "The Lantern Seed",
-        "story": "Pebblehex has hidden the meadow's glowing seed beneath a maze of thorny roots. Find the light before the flowers fall asleep.",
-        "scene": "A golden meadow, a tiny winding stream, and flowers that blink like stars.",
-        "reward": "Sunpetal Badge",
-        "accent": "#d58d24",
-        "ward": 92,
-    },
-    {
-        "name": "Whispering Woods",
-        "emoji": "🌲",
-        "boss": "Bramblewyn",
-        "boss_emoji": "🧙‍♀️",
-        "subtitle": "The Stolen Echo",
-        "story": "Bramblewyn has trapped the forest's friendly voices in a glass acorn. Follow the fireflies and set their echoes free.",
-        "scene": "Tall blue-green trees, floating fireflies, and a path of silver leaves.",
-        "reward": "Echo Acorn",
-        "accent": "#418b63",
-        "ward": 108,
-    },
-    {
-        "name": "Moonstone Caves",
-        "emoji": "💎",
-        "boss": "Gloam the Crystal Mage",
-        "boss_emoji": "🧙",
-        "subtitle": "The Shattered Moonstone",
-        "story": "Gloam has split the cave's moonstone into sparkling pieces. Light each crystal bridge to put the moonstone back together.",
-        "scene": "A deep violet cavern with glowing crystals and a quiet underground lake.",
-        "reward": "Moonstone Shard",
-        "accent": "#8673d1",
-        "ward": 124,
-    },
-    {
-        "name": "Stormglass Skybridge",
-        "emoji": "🌩️",
-        "boss": "Vexa Stormwhirl",
-        "boss_emoji": "🧝‍♀️",
-        "subtitle": "The Wandering Wind",
-        "story": "Vexa has turned the skybridge into a spinning wind maze. Bring the calm breeze back so the cloud villages can visit one another.",
-        "scene": "Cloud castles, rainbow bridges, and harmless little storm clouds.",
-        "reward": "Skybridge Crest",
-        "accent": "#4384c5",
-        "ward": 142,
-    },
-    {
-        "name": "Obsidian Tower",
-        "emoji": "🏰",
-        "boss": "Maldred",
-        "boss_emoji": "🧙‍♂️",
-        "subtitle": "The Last Spell",
-        "story": "Maldred waits at the top of the tower with a spell that could dim every star. Bring your friends' gifts together and break his shadow shield.",
-        "scene": "A midnight tower above the clouds, with friendly stars lighting the stairs.",
-        "reward": "Starkeeper Crown",
-        "accent": "#bd668d",
-        "ward": 165,
-    },
+CASTLES = [
+    {"place": "Sunpetal Meadow", "boss": "Pebblehex", "subtitle": "The Lantern Seed", "emoji": "🌻", "color": "#f5bd48", "hp": 50, "scene": "Golden flowers sway while Pebblehex guards the little lantern seed."},
+    {"place": "Whispering Woods", "boss": "Bramblewyn", "subtitle": "The Stolen Echo", "emoji": "🌲", "color": "#47a772", "hp": 100, "scene": "Fireflies guide the way through Bramblewyn's twisty forest spell."},
+    {"place": "Moonstone Caves", "boss": "Gloam", "subtitle": "The Shattered Moonstone", "emoji": "💎", "color": "#9a78dc", "hp": 150, "scene": "Glowing crystals light Gloam's purple cave and underground lake."},
+    {"place": "Stormglass Skybridge", "boss": "Vexa Stormwhirl", "subtitle": "The Wandering Wind", "emoji": "🌩️", "color": "#55a5df", "hp": 200, "scene": "Cloud castles float above Vexa's rainbow bridge and playful storms."},
+    {"place": "Obsidian Tower", "boss": "Maldred", "subtitle": "The Last Spell", "emoji": "🏰", "color": "#bf668d", "hp": 250, "scene": "Maldred waits in the tallest tower beneath a sky full of brave stars."},
 ]
 
 
 SPELLS = {
-    "spark": {
-        "name": "Spark Bolt",
-        "emoji": "✨",
-        "cost": 0,
-        "kind": "attack",
-        "power": 12,
-        "charge": 1,
-        "description": "A bright, dependable bolt of wizard light.",
-    },
-    "leaf": {
-        "name": "Mending Leaf",
-        "emoji": "🍃",
-        "cost": 0,
-        "kind": "heal",
-        "power": 18,
-        "charge": 1,
-        "description": "A kind forest spell that restores some shield hearts.",
-    },
-    "moonbeam": {
-        "name": "Moonbeam Arc",
-        "emoji": "🌙",
-        "cost": 15,
-        "kind": "attack",
-        "power": 20,
-        "charge": 2,
-        "description": "A curved ribbon of cool moonlight that cuts through dark magic.",
-    },
-    "frost": {
-        "name": "Frostberry Flurry",
-        "emoji": "🫐",
-        "cost": 22,
-        "kind": "attack",
-        "power": 27,
-        "charge": 2,
-        "description": "A burst of sparkling frostberries bonks the enemy's shadow shield.",
-    },
-    "sunshield": {
-        "name": "Sunflower Shield",
-        "emoji": "🌞",
-        "cost": 18,
-        "kind": "heal",
-        "power": 34,
-        "charge": 3,
-        "description": "A warm golden shield that restores lots of hearts.",
-    },
-    "starstorm": {
-        "name": "Starstorm",
-        "emoji": "🌠",
-        "cost": 35,
-        "kind": "attack",
-        "power": 42,
-        "charge": 4,
-        "description": "A dazzling shower of stars for the bravest wizard battles.",
-    },
+    "spark": {"name": "Spark Bolt", "emoji": "✨", "questions": 5, "damage": 25, "color": "#ffc83d", "description": "A speedy golden bolt of bright wizard light."},
+    "moonbeam": {"name": "Moonbeam Arc", "emoji": "🌙", "questions": 10, "damage": 50, "color": "#67b6ee", "description": "A ribbon of moonlight that sweeps across the arena."},
+    "dragonflame": {"name": "Dragonflame", "emoji": "🔥", "questions": 15, "damage": 75, "color": "#ff805e", "description": "A friendly dragon's warm, roaring burst of magic."},
+    "starstorm": {"name": "Starstorm", "emoji": "🌠", "questions": 20, "damage": 100, "color": "#ad7ff2", "description": "A giant shower of sparkling stars for the toughest foes."},
 }
 
 
 CSS = """
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@500;600;700;800;900&display=swap');
-.stApp {
-  background:
-    radial-gradient(ellipse at 90% 3%, rgba(255, 212, 132, .25), transparent 30%),
-    radial-gradient(ellipse at 4% 18%, rgba(177, 208, 255, .24), transparent 32%),
-    linear-gradient(180deg, #fffaf0 0%, #f5f6ff 55%, #f2f9ff 100%);
-  color: #27304c;
-  font-family: 'Nunito', 'Trebuchet MS', sans-serif;
-}
-.block-container { max-width: 1120px; padding-top: 1.6rem; padding-bottom: 3rem; }
-h1, h2, h3, p, label, [data-testid="stMarkdownContainer"] { font-family: 'Nunito', 'Trebuchet MS', sans-serif; }
-h1 { color: #31295f; letter-spacing: -.03em; }
-div.stButton > button {
-  min-height: 3.05rem;
-  border-radius: 16px;
-  border: 1px solid #d9d7ef;
-  background: #fff;
-  color: #332d63;
-  font-weight: 800;
-  box-shadow: 0 4px 0 rgba(63, 56, 112, .08);
-  transition: transform .12s ease, box-shadow .12s ease;
-}
-div.stButton > button:hover { border-color: #9887e8; color: #2d245f; transform: translateY(-2px); box-shadow: 0 6px 0 rgba(63, 56, 112, .10); }
-div.stButton > button:focus { border-color: #6354b2; color: #2d245f; }
-[data-testid="stProgressBar"] > div > div { background: linear-gradient(90deg, #79c786, #f4c765); }
-.hero-banner {
-  padding: 2rem 2rem 1.8rem; border-radius: 30px; color: white;
-  background: linear-gradient(125deg, #39316e, #6651b6 58%, #987bd9);
-  box-shadow: 0 12px 30px rgba(66, 51, 133, .18); margin-bottom: 1.2rem;
-}
-.hero-banner h1 { color: white !important; margin: .2rem 0 .4rem; }
-.hero-banner p { color: #f2edff; font-size: 1.08rem; margin-bottom: .2rem; }
-.eyebrow { text-transform: uppercase; letter-spacing: .12em; font-size: .78rem; font-weight: 900; opacity: .82; }
-.quest-card {
-  border: 1px solid rgba(72, 67, 112, .12); border-top: 5px solid var(--accent);
-  border-radius: 22px; padding: 1rem 1.1rem; min-height: 205px; margin: .35rem 0 .5rem;
-  background: linear-gradient(145deg, color-mix(in srgb, var(--accent) 10%, white), rgba(255,255,255,.94));
-  box-shadow: 0 8px 20px rgba(47, 48, 90, .07);
-}
-.quest-emoji { font-size: 2.2rem; }
-.quest-name { font-size: 1.18rem; font-weight: 900; color: #332d63; margin-top: .1rem; }
-.quest-meta { color: #6b6686; font-size: .93rem; font-weight: 800; }
-.quest-story { color: #514e6c; font-size: .95rem; line-height: 1.4; margin-top: .45rem; }
-.locked { filter: saturate(.5); opacity: .68; }
-.arena {
-  border-radius: 26px; padding: 1.3rem 1.4rem; margin: .6rem 0 1rem;
-  background: linear-gradient(125deg, color-mix(in srgb, var(--accent) 13%, white), #fff 55%, #f2efff);
-  border: 1px solid color-mix(in srgb, var(--accent) 24%, white);
-}
-.arena-title { color: #332d63; font-size: 1.45rem; font-weight: 900; }
-.arena-scene { color: #615c7b; font-size: .97rem; }
-.battle-portrait { font-size: 4rem; line-height: 1.15; filter:drop-shadow(0 5px 3px rgba(45,40,90,.14)); }
-.battle-label { color: #5c5878; font-weight: 900; font-size: 1.05rem; }
-.question-box {
-  border: 2px solid #ded8ff; border-radius: 24px; background: white;
-  padding: 1.15rem; text-align: center; margin: .8rem 0 .7rem;
-  box-shadow: 0 8px 22px rgba(72, 58, 138, .08);
-}
-.question-caption { color: #716d8a; font-weight: 900; font-size: .95rem; }
-.question-math { color: #30285f; font-weight: 900; font-size: 2.7rem; letter-spacing: .03em; }
-.spell-card {
-  height: 100%; padding: 1rem; border-radius: 20px; border: 1px solid #e4def6;
-  background: linear-gradient(145deg, #fff, #f7f4ff); margin-bottom: .45rem;
-}
-.spell-icon { font-size: 1.8rem; }
-.spell-name { font-size: 1.05rem; color: #332d63; font-weight: 900; }
-.spell-detail { color: #68627f; font-size: .91rem; min-height: 3.1rem; }
-.status-pill { display: inline-block; padding: .38rem .75rem; margin: .2rem .2rem .2rem 0; border-radius: 999px; background: #fff; border: 1px solid #e2def0; color: #514b76; font-weight: 900; }
-.victory-banner {
-  border-radius: 28px; padding: 2rem; color: #fff; text-align: center;
-  background: linear-gradient(130deg, #43366e, #7960bc, #e5a257);
-  box-shadow: 0 12px 30px rgba(66, 51, 133, .18);
-}
-.victory-banner h1 { color: #fff !important; }
-.map-wrap { border: 6px solid #fff; border-radius: 30px; overflow: hidden; margin: .4rem 0 1.1rem; box-shadow: 0 14px 30px rgba(36,87,132,.16); background: #79d6ec; }
-.map-svg { display:block; width:100%; height:auto; }
-.map-stop { border-radius:18px; padding:.8rem .55rem; text-align:center; background:rgba(255,255,255,.95); border:2px solid #e8e2f5; box-shadow:0 5px 0 rgba(49,47,95,.08); min-height:118px; }
-.map-stop strong { display:block; color:#332d63; font-size:.88rem; }
-.map-stop span { font-size:1.8rem; }
-.battle-stage { border-radius:28px; padding:1.1rem; background:linear-gradient(140deg,#fff9df,#fff 52%,#f0eaff); border:2px solid #fff; box-shadow:0 12px 26px rgba(48,44,98,.12); margin:.7rem 0 1rem; }
-.battle-duel { display:flex; align-items:center; justify-content:space-around; gap:1rem; text-align:center; padding:.7rem; }
-.duel-avatar { font-size:5rem; filter:drop-shadow(0 6px 4px rgba(45,40,90,.15)); }
-.speech-pop { position:relative; padding:1rem 1.2rem; border-radius:22px; background:white; border:3px solid #f5c84e; color:#38315f; text-align:center; font-size:1.15rem; font-weight:900; box-shadow:0 6px 0 rgba(196,148,37,.18); margin:.4rem 0 1rem; }
-.charge-chip { display:inline-block; border-radius:999px; padding:.26rem .65rem; background:#fff4c4; border:1px solid #f0d26f; font-weight:900; color:#675017; margin-top:.35rem; }
-.spell-effect { display:flex; align-items:center; justify-content:space-around; gap:.5rem; padding:.8rem; margin:.45rem 0; border-radius:20px; background:linear-gradient(90deg,#fff3bf,#efeaff,#fff); border:2px solid #f4d878; color:#3b316e; font-size:1.25rem; font-weight:900; text-align:center; }
-.spell-effect span { font-size:2.6rem; animation:spell-pop .65s ease-in-out infinite alternate; }
-@keyframes spell-pop { from { transform:scale(.92) rotate(-5deg); } to { transform:scale(1.1) rotate(5deg); } }
-@media (max-width: 700px) {
-  .hero-banner { padding: 1.4rem; border-radius: 22px; }
-  .question-math { font-size: 2.15rem; }
-  .quest-card { min-height: 0; }
-}
+:root { --ink:#302853; --purple:#6754b6; --soft:#f4f6ff; }
+.stApp { background:radial-gradient(ellipse at 90% 0%,#fff0c5 0,transparent 28%),linear-gradient(180deg,#fffaf0 0%,#f5f5ff 48%,#effaff 100%); color:var(--ink); font-family:'Nunito','Trebuchet MS',sans-serif; }
+.block-container { max-width:1240px; padding-top:1.15rem; padding-bottom:3rem; }
+h1,h2,h3,p,label,[data-testid="stMarkdownContainer"] { font-family:'Nunito','Trebuchet MS',sans-serif; }
+h1,h2,h3 { color:var(--ink); letter-spacing:-.025em; }
+div.stButton > button { min-height:3rem; border-radius:16px; border:2px solid #dedbf0; color:#38315e; background:#fff; font-weight:900; box-shadow:0 4px 0 rgba(53,46,99,.09); transition:transform .14s ease,box-shadow .14s ease; }
+div.stButton > button:hover { transform:translateY(-2px); border-color:#a18be6; color:#2e255e; box-shadow:0 6px 0 rgba(53,46,99,.12); }
+div.stButton > button:disabled { color:#aaa8b7; background:#e7e6eb; border-color:#e0dfe6; box-shadow:none; }
+[data-testid="stProgressBar"] > div > div { background:linear-gradient(90deg,#67d38b,#f7cb56); }
+.hero { padding:2rem; border-radius:30px; color:white; background:linear-gradient(125deg,#39316e,#7055bd 58%,#a18ae6); box-shadow:0 13px 28px rgba(66,51,133,.17); margin:.25rem 0 1.15rem; }
+.hero h1 { color:white!important; margin:.2rem 0 .45rem; font-size:2.35rem; }
+.hero p { color:#f2edff; margin:.15rem 0; font-size:1.08rem; }
+.eyebrow { text-transform:uppercase; letter-spacing:.13em; font-size:.75rem; font-weight:900; opacity:.82; }
+.pill { display:inline-block; padding:.42rem .78rem; border-radius:999px; border:1px solid #e5e0f0; background:white; margin:.15rem .25rem .3rem 0; font-weight:900; color:#514a77; }
+.home-card { min-height:160px; border-radius:24px; padding:1.1rem; border:1px solid #e5def3; background:linear-gradient(145deg,#fff,#f5f0ff); box-shadow:0 8px 20px rgba(48,44,94,.07); }
+.island-intro { color:#514d70; font-weight:800; margin:.35rem 0 .65rem; }
+/* The map artwork is static SVG; actual Streamlit buttons are transparent, positioned hit areas over each castle. */
+.st-key-island_map { position:relative; height:580px; min-height:430px; overflow:hidden; border:7px solid white; border-radius:32px; box-shadow:0 16px 32px rgba(35,93,143,.2); background:#69cce5; margin:.45rem 0 1rem; }
+.st-key-island_map .map-art { position:absolute; inset:0; width:100%; height:100%; z-index:0; }
+.st-key-island_map .map-art svg { width:100%; height:100%; display:block; }
+.st-key-island_map [class*="st-key-castle_hit_"] { position:absolute!important; z-index:3; width:10%; height:17%; min-width:54px; }
+.st-key-island_map .st-key-castle_hit_0 { left:6.5%; top:54%; }
+.st-key-island_map .st-key-castle_hit_1 { left:25.5%; top:28%; }
+.st-key-island_map .st-key-castle_hit_2 { left:44.5%; top:51%; }
+.st-key-island_map .st-key-castle_hit_3 { left:63.5%; top:27%; }
+.st-key-island_map .st-key-castle_hit_4 { left:82.5%; top:47%; }
+.st-key-island_map [class*="st-key-castle_hit_"] button { width:100%; height:100%; min-height:0; color:transparent!important; background:transparent!important; border:2px solid transparent!important; box-shadow:none!important; padding:0!important; font-size:0!important; }
+.st-key-island_map [class*="st-key-castle_hit_"] button:hover { background:rgba(255,240,120,.18)!important; border:3px solid rgba(255,255,255,.85)!important; box-shadow:0 0 24px 10px rgba(255,239,116,.55)!important; }
+.st-key-island_map [class*="st-key-castle_hit_"] button:disabled { opacity:0!important; }
+@media(max-width:720px) { .st-key-island_map { height:430px; } .hero { padding:1.35rem; } .hero h1 { font-size:1.75rem; } }
+.battle-shell { border-radius:30px; border:2px solid white; background:linear-gradient(145deg,#fff,#f8f5ff); box-shadow:0 12px 28px rgba(49,42,95,.1); padding:1rem; }
+.battle-title { color:#51497a; font-size:1.05rem; font-weight:900; }
+.battle-arena { --sky1:#b9eeff; --sky2:#72d6e9; --ground:#89d27f; position:relative; overflow:hidden; min-height:420px; border-radius:28px; border:5px solid white; box-shadow:inset 0 0 0 2px rgba(255,255,255,.45),0 12px 26px rgba(43,43,93,.15); background:linear-gradient(180deg,var(--sky1),var(--sky2) 64%,var(--ground) 64%,#5fb978); padding:1rem; }
+.battle-arena:before { content:'☁️'; position:absolute; top:12%; left:7%; font-size:2.7rem; opacity:.75; }
+.battle-arena:after { content:'✦　✧　✦'; position:absolute; top:13%; right:7%; color:#fff5a9; font-size:1.3rem; letter-spacing:.7rem; }
+.battle-arena.woods { --sky1:#b7e6be; --sky2:#62b98b; --ground:#54985e; }
+.battle-arena.caves { --sky1:#7465bc; --sky2:#514786; --ground:#38335e; }
+.battle-arena.sky { --sky1:#b7e9ff; --sky2:#82c9f2; --ground:#d5f4ff; }
+.battle-arena.tower { --sky1:#393759; --sky2:#61528f; --ground:#393554; }
+.duel { position:absolute; left:5%; right:5%; bottom:7%; height:74%; display:flex; align-items:flex-end; justify-content:space-between; z-index:2; }
+.character { width:36%; height:100%; position:relative; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; }
+.character.hero { animation:hero-bob 2.3s ease-in-out infinite; }
+.character.boss { animation:boss-bob 2.8s ease-in-out infinite; }
+.character.boss.hurt { animation:enemy-flinch .58s ease-in-out 1,boss-bob 2.8s ease-in-out infinite; filter:saturate(.68); }
+.sprite { width:min(100%,205px); height:78%; overflow:visible; filter:drop-shadow(0 9px 7px rgba(32,31,67,.2)); }
+.char-name { background:rgba(255,255,255,.88); padding:.18rem .55rem; border-radius:999px; font-size:.86rem; color:#322c56; font-weight:900; margin-top:.1rem; }
+.head-health { position:absolute; top:0; width:90%; text-align:center; z-index:5; }
+.head-health b { display:block; color:white; text-shadow:0 2px 4px #392f63; font-size:.8rem; }
+.health-track { height:12px; border:2px solid white; border-radius:99px; background:#5b3449; overflow:hidden; box-shadow:0 2px 5px rgba(37,31,75,.25); }
+.health-fill { display:block; height:100%; border-radius:99px; background:linear-gradient(90deg,#68dd75,#a9ef6b); transition:width .35s ease; }
+.boss .health-fill { background:linear-gradient(90deg,#ff727a,#f7be54); }
+.spell-impact { position:absolute; left:50%; top:34%; transform:translate(-50%,-50%); z-index:4; font-size:4rem; filter:drop-shadow(0 0 16px #fff5a7); animation:impact .85s ease-out 1; }
+.boss-hurt { position:absolute; top:18%; right:6%; z-index:5; color:#fff4e8; font-size:1.5rem; font-weight:1000; text-shadow:0 3px 4px #5c315b; animation:damage-pop .85s ease-out 1; }
+.arena-caption { position:absolute; z-index:1; left:0; right:0; top:5%; color:white; text-align:center; font-weight:900; text-shadow:0 2px 5px #474075; }
+@keyframes hero-bob { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-8px); } }
+@keyframes boss-bob { 0%,100% { transform:translateY(0) rotate(0); } 50% { transform:translateY(-5px) rotate(1deg); } }
+@keyframes enemy-flinch { 0%,100% { transform:translateX(0) rotate(0); } 25% { transform:translateX(-11px) rotate(-7deg); } 60% { transform:translateX(9px) rotate(6deg); } }
+@keyframes impact { from { opacity:.2; transform:translate(-50%,-50%) scale(.35) rotate(-30deg); } to { opacity:1; transform:translate(-50%,-50%) scale(1.2) rotate(18deg); } }
+@keyframes damage-pop { from { opacity:0; transform:translateY(18px) scale(.7); } to { opacity:1; transform:translateY(-10px) scale(1.1); } }
+.spell-pick { min-height:94px; border-radius:19px; padding:.75rem; border:1px solid #e6dff2; background:linear-gradient(140deg,#fff,#f5f1ff); margin:.25rem 0 .25rem; }
+.spell-pick .spell-title { font-size:1rem; font-weight:1000; color:#352e64; }
+.spell-pick .spell-detail { font-size:.84rem; color:#6a6480; line-height:1.3; }
+.spell-chip { display:inline-block; padding:.22rem .55rem; border-radius:999px; background:#fff2c7; color:#65501c; font-weight:900; font-size:.8rem; margin-top:.3rem; }
+.st-key-owned_spell_0 button,.st-key-owned_spell_1 button,.st-key-owned_spell_2 button,.st-key-owned_spell_3 button { border-color:#f3c853!important; background:linear-gradient(135deg,#fff9d9,#fff)!important; box-shadow:0 0 0 3px rgba(255,210,73,.22),0 5px 0 rgba(82,61,23,.1)!important; }
+.st-key-owned_spell_0 button { animation:spell-ready 1.7s ease-in-out infinite; }
+@keyframes spell-ready { 50% { box-shadow:0 0 0 6px rgba(255,210,73,.12),0 5px 0 rgba(82,61,23,.1)!important; } }
+.challenge-card { border-radius:26px; padding:1.3rem; background:linear-gradient(135deg,#fff,#f2edff); border:2px solid white; box-shadow:0 12px 28px rgba(51,42,99,.11); text-align:center; margin:.6rem 0 1rem; }
+.challenge-math { font-size:3rem; font-weight:1000; color:#30285f; padding:.6rem; }
+.challenge-finish { border-radius:25px; background:linear-gradient(130deg,#fff0b9,#fff,#e4fbe9); padding:1.2rem; text-align:center; font-weight:900; }
+.notice { padding:.8rem 1rem; border-radius:18px; background:#fff3c8; border:1px solid #efd77b; color:#56451d; font-weight:900; margin:.5rem 0; }
+@media(max-width:700px) { .battle-arena { min-height:330px; } .duel { left:2%; right:2%; } .character { width:42%; } .sprite { width:100%; } .challenge-math { font-size:2.2rem; } }
 </style>
 """
-
-
 st.markdown(CSS, unsafe_allow_html=True)
 
 
 def init_state() -> None:
     defaults = {
-        "screen": "home",
-        "player": "Kate",
-        "math_level": 1,
-        "unlocked_stage": 0,
-        "completed_stages": [],
-        "stardust": 8,
-        "owned_spells": ["spark", "leaf"],
-        "current_stage": 0,
-        "return_screen": "map",
-        "question_index": 0,
-        "attempt_count": 0,
-        "questions": [],
-        "turn_mode": "question",
-        "hero_hp": 100,
-        "enemy_hp": 100,
-        "enemy_max_hp": 100,
-        "battle_correct": 0,
-        "battle_earned": 0,
-        "spell_charge": 0,
-        "selected_spell": "spark",
-        "is_replay": False,
-        "hint_shown": False,
-        "feedback": "",
-        "round_message": "",
-        "guardian_save": False,
-        "maldred_defeated": False,
+        "screen": "home", "player": "Kate", "math_level": 1,
+        "unlocked_castle": 0, "completed_castles": [], "active_castle": 0,
+        "enemy_hp": 0, "spell_inventory": [], "challenge_spell": None,
+        "challenge_questions": [], "challenge_index": 0, "challenge_attempt": 0,
+        "challenge_feedback": "", "challenge_notice": "", "map_notice": "",
+        "new_spell_highlight": None, "last_spell": None, "last_damage": 0,
+        "adventure_over": False,
     }
     for key, value in defaults.items():
         if key not in st.session_state:
@@ -289,13 +143,13 @@ init_state()
 S = st.session_state
 
 
-def make_choices(answer: int, maximum: int) -> list[int]:
+def make_choices(answer: int, max_answer: int) -> list[int]:
     choices = {answer}
     distance = 1
     while len(choices) < 3:
-        for candidate in (answer - distance, answer + distance):
-            if 0 <= candidate <= maximum:
-                choices.add(candidate)
+        for item in (answer - distance, answer + distance):
+            if 0 <= item <= max_answer:
+                choices.add(item)
             if len(choices) == 3:
                 break
         distance += 1
@@ -305,565 +159,338 @@ def make_choices(answer: int, maximum: int) -> list[int]:
 
 
 def make_problem(level: int) -> dict:
-    info = MATH_LEVELS[level]
-    maximum = info["range"]
-    kind = info["kind"]
-    if kind == "add":
-        subtraction = False
-    elif kind == "subtract":
-        subtraction = True
-    else:
-        subtraction = random.random() < 0.45
-
-    if subtraction:
+    cfg = MATH_LEVELS[level]
+    maximum = cfg["max"]
+    subtract = cfg["kind"] == "subtract" or (cfg["kind"] == "mixed" and random.random() < .45)
+    if subtract:
         first = random.randint(0, maximum)
         second = random.randint(0, first)
-        answer = first - second
-        operator = "−"
-        symbol = "−"
+        answer, op = first - second, "−"
     else:
         first = random.randint(0, maximum)
         second = random.randint(0, maximum - first)
-        answer = first + second
-        operator = "+"
-        symbol = "+"
-
-    expression = f"{first} {symbol} {second}"
-    if operator == "+":
-        hint = f"Start at {first} and count forward {second} {('step' if second == 1 else 'steps')}."
-        explanation = f"{first} + {second} = {answer}. Start at {first} and count forward {second} {('step' if second == 1 else 'steps')} to reach {answer}."
-    else:
-        hint = f"Start at {first} and count backward {second} {('step' if second == 1 else 'steps')}."
-        explanation = f"{first} − {second} = {answer}. Start at {first} and count backward {second} {('step' if second == 1 else 'steps')} to reach {answer}."
-
-    return {
-        "first": first,
-        "second": second,
-        "operator": operator,
-        "expression": expression,
-        "answer": answer,
-        "hint": hint,
-        "explanation": explanation,
-        "choices": make_choices(answer, maximum),
-    }
+        answer, op = first + second, "+"
+    expression = f"{first} {op} {second}"
+    hint = f"Start at {first} and count {'back' if subtract else 'forward'} {second} {('step' if second == 1 else 'steps')}"
+    explanation = f"{expression} = {answer}. {hint} to reach {answer}."
+    return {"expression": expression, "answer": answer, "choices": make_choices(answer, maximum), "hint": hint + ".", "explanation": explanation}
 
 
-def start_battle(stage_index: int) -> None:
-    stage = QUESTS[stage_index]
-    S["current_stage"] = stage_index
-    S["is_replay"] = stage_index in S["completed_stages"]
-    S["questions"] = [make_problem(S["math_level"]) for _ in range(10)]
-    S["question_index"] = 0
-    S["attempt_count"] = 0
-    S["turn_mode"] = "intro"
-    S["spell_charge"] = 0
-    S["selected_spell"] = next((sid for sid in S["owned_spells"] if SPELLS[sid]["kind"] == "attack"), "spark")
-    S["hero_hp"] = 100
-    S["enemy_max_hp"] = stage["ward"]
-    S["enemy_hp"] = stage["ward"]
-    S["battle_correct"] = 0
-    S["battle_earned"] = 0
-    S["hint_shown"] = False
-    S["feedback"] = ""
-    S["round_message"] = ""
-    S["guardian_save"] = False
+def start_adventure(player: str, level: int) -> None:
+    S.update({
+        "screen": "map", "player": player, "math_level": level,
+        "unlocked_castle": 0, "completed_castles": [], "active_castle": 0,
+        "enemy_hp": 0, "spell_inventory": [], "challenge_spell": None,
+        "challenge_questions": [], "challenge_index": 0, "challenge_attempt": 0,
+        "challenge_feedback": "", "challenge_notice": "", "map_notice": "",
+        "new_spell_highlight": None, "last_spell": None, "last_damage": 0,
+        "adventure_over": False,
+    })
+
+
+def enter_castle(index: int) -> None:
+    S["active_castle"] = index
+    S["enemy_hp"] = CASTLES[index]["hp"]
+    S["last_spell"] = None
+    S["last_damage"] = 0
+    S["new_spell_highlight"] = None
+    S["challenge_notice"] = ""
     S["screen"] = "battle"
 
 
-def answer_question(answer: int) -> None:
-    question = S["questions"][S["question_index"]]
-    S["guardian_save"] = False
-    if answer == question["answer"]:
-        S["battle_correct"] += 1
-        S["attempt_count"] = 0
-        S["spell_charge"] = min(8, S.get("spell_charge", 0) + 1)
-        S["hint_shown"] = False
-        if not S["is_replay"]:
-            S["stardust"] += 3
-            S["battle_earned"] += 3
-        S["feedback"] = "Yes! Your math powered up a spell. Choose what to cast."
-        S["turn_mode"] = "spell"
-    else:
-        if S["attempt_count"] == 0:
-            S["attempt_count"] = 1
-            S["hero_hp"] = max(0, S["hero_hp"] - 12)
-            S["feedback"] = "Not quite yet. Would you like a hint and one more try, or would you like to see how to solve it?"
-            if S["hero_hp"] == 0:
-                S["hero_hp"] = 40
-                S["guardian_save"] = True
-            S["turn_mode"] = "first_miss"
-        else:
-            S["feedback"] = question["explanation"]
-            S["turn_mode"] = "miss_feedback"
-
-
-def cast_spell(spell_id: str) -> None:
+def begin_spell_challenge(spell_id: str) -> None:
     spell = SPELLS[spell_id]
-    S["last_spell"] = spell_id
-    charge_cost = spell.get("charge", 1)
-    if S.get("spell_charge", 0) < charge_cost:
+    S["challenge_spell"] = spell_id
+    S["challenge_questions"] = [make_problem(S["math_level"]) for _ in range(spell["questions"])]
+    S["challenge_index"] = 0
+    S["challenge_attempt"] = 0
+    S["challenge_feedback"] = ""
+    S["screen"] = "spell_challenge"
+
+
+def answer_challenge(answer: int) -> None:
+    problem = S["challenge_questions"][S["challenge_index"]]
+    if answer == problem["answer"]:
+        S["challenge_index"] += 1
+        S["challenge_attempt"] = 0
+        S["challenge_feedback"] = "Yes! One more answer powers your spell!"
+        if S["challenge_index"] >= len(S["challenge_questions"]):
+            spell_id = S["challenge_spell"]
+            S["spell_inventory"].append(spell_id)
+            S["new_spell_highlight"] = spell_id
+            S["challenge_notice"] = f"{SPELLS[spell_id]['emoji']} {SPELLS[spell_id]['name']} is ready! Click its glowing card to cast it."
+            S["screen"] = "battle"
+    else:
+        S["challenge_attempt"] += 1
+        S["challenge_feedback"] = "Not that one yet. Try again, or tap for a counting hint!"
+
+
+def cast_spell(inventory_index: int) -> None:
+    if inventory_index >= len(S["spell_inventory"]):
         return
-    S["spell_charge"] -= charge_cost
-    if spell["kind"] == "attack":
-        actual_damage = min(spell["power"], S["enemy_hp"])
-        S["enemy_hp"] = max(0, S["enemy_hp"] - spell["power"])
-        if actual_damage:
-            message = f"{spell['emoji']} {spell['name']} sparkles across the arena and breaks {actual_damage} points of {QUESTS[S['current_stage']]['boss']}'s shadow shield!"
-            if S["enemy_hp"] == 0:
-                message += " The shield is down! Finish all 10 questions to close the portal."
+    spell_id = S["spell_inventory"].pop(inventory_index)
+    spell = SPELLS[spell_id]
+    S["new_spell_highlight"] = None
+    S["last_spell"] = spell_id
+    S["last_damage"] = min(spell["damage"], S["enemy_hp"])
+    S["enemy_hp"] = max(0, S["enemy_hp"] - spell["damage"])
+    if S["enemy_hp"] == 0:
+        index = S["active_castle"]
+        if index not in S["completed_castles"]:
+            S["completed_castles"].append(index)
+        if index < len(CASTLES) - 1:
+            S["unlocked_castle"] = index + 1
+            S["map_notice"] = f"🏆 {CASTLES[index]['boss']} is defeated! Castle {index + 2} is open on the island map!"
         else:
-            message = f"{spell['emoji']} {spell['name']} lights the arena. The shadow shield is already down—finish all 10 questions to close the portal."
+            S["adventure_over"] = True
+            S["map_notice"] = "🌟 Maldred is defeated! The Starwilds are sparkling again!"
+        S["screen"] = "map"
     else:
-        before = S["hero_hp"]
-        S["hero_hp"] = min(100, S["hero_hp"] + spell["power"])
-        healed = S["hero_hp"] - before
-        message = f"{spell['emoji']} {spell['name']} wraps you in a warm glow and restores {healed} shield hearts."
-
-    S["round_message"] = message
-    S["turn_mode"] = "spell_result"
+        S["screen"] = "battle"
 
 
-def next_question() -> None:
-    if S["question_index"] >= 9:
-        S["turn_mode"] = "encounter_done"
-    else:
-        S["question_index"] += 1
-        S["attempt_count"] = 0
-        S["turn_mode"] = "question"
-        S["hint_shown"] = False
+def hero_svg(color: str = "#8a71d5") -> str:
+    return f"""<svg class='sprite' viewBox='0 0 180 220' aria-hidden='true'>
+    <ellipse cx='91' cy='207' rx='56' ry='10' fill='rgba(35,35,69,.2)'/>
+    <path d='M48 202 Q53 139 68 122 L111 122 Q131 147 139 202 Q97 217 48 202Z' fill='{color}' stroke='#41376f' stroke-width='5'/>
+    <path d='M69 127 L90 160 L112 126' fill='#fff2cf' stroke='#41376f' stroke-width='4'/>
+    <circle cx='91' cy='89' r='37' fill='#f4c99f' stroke='#4f3c62' stroke-width='4'/>
+    <path d='M55 85 Q55 35 95 32 Q134 37 128 85 Q107 62 80 66 Q68 67 55 85Z' fill='#523d71'/>
+    <path d='M38 62 L94 4 L140 64 Q91 48 38 62Z' fill='{color}' stroke='#41376f' stroke-width='5'/>
+    <path d='M32 66 Q89 49 148 68 Q116 84 34 76Z' fill='#44376d' stroke='#41376f' stroke-width='4'/>
+    <circle cx='77' cy='91' r='4' fill='#302853'/><circle cx='105' cy='91' r='4' fill='#302853'/>
+    <path d='M81 107 Q92 116 103 106' fill='none' stroke='#a34e56' stroke-width='4' stroke-linecap='round'/>
+    <path d='M52 139 Q31 148 25 171' fill='none' stroke='#f4c99f' stroke-width='12' stroke-linecap='round'/>
+    <path d='M130 142 Q145 153 151 168' fill='none' stroke='#f4c99f' stroke-width='12' stroke-linecap='round'/>
+    <path d='M23 173 L25 133' stroke='#745a37' stroke-width='6' stroke-linecap='round'/><path d='M13 135 L25 115 L37 135Z' fill='#ffe66c'/>
+    <circle cx='25' cy='111' r='12' fill='#fff9c7' opacity='.85'/></svg>"""
 
 
-def finish_battle() -> None:
-    stage_index = S["current_stage"]
-    stage = QUESTS[stage_index]
-    if stage_index not in S["completed_stages"]:
-        S["completed_stages"].append(stage_index)
-        S["stardust"] += 8
-        S["battle_earned"] += 8
-        S["unlocked_stage"] = min(len(QUESTS) - 1, max(S["unlocked_stage"], stage_index + 1))
-    if stage_index == len(QUESTS) - 1:
-        S["maldred_defeated"] = True
-        S["screen"] = "ending"
-    else:
-        S["screen"] = "reward"
+def boss_svg(index: int, hurt: bool = False) -> str:
+    colors = ["#58704e", "#596b4b", "#68508f", "#526b96", "#493b70"]
+    trim = ["#d78857", "#72ae62", "#76dcf0", "#68b9ec", "#c95c87"]
+    color, accent = colors[index], trim[index]
+    mouth = "M75 111 Q91 101 106 111" if hurt else "M76 106 Q91 112 106 106"
+    return f"""<svg class='sprite' viewBox='0 0 180 220' aria-hidden='true'>
+    <ellipse cx='91' cy='207' rx='58' ry='10' fill='rgba(35,35,69,.24)'/>
+    <path d='M42 203 Q50 136 65 123 L117 123 Q134 151 141 203 Q95 216 42 203Z' fill='{color}' stroke='#302843' stroke-width='5'/>
+    <path d='M60 142 L89 164 L119 141' fill='none' stroke='{accent}' stroke-width='8'/>
+    <circle cx='91' cy='89' r='39' fill='#9cb278' stroke='#352e43' stroke-width='5'/>
+    <path d='M52 78 Q54 29 92 27 Q129 32 132 77 L113 68 L100 78 L84 66 L68 80Z' fill='{color}' stroke='#302843' stroke-width='5'/>
+    <path d='M48 68 Q88 47 135 69 L126 82 Q90 69 54 83Z' fill='{accent}' stroke='#302843' stroke-width='4'/>
+    <path d='M74 89 L83 91 M101 91 L110 89' stroke='#2e2545' stroke-width='5' stroke-linecap='round'/>
+    <path d='{mouth}' fill='none' stroke='#5c303a' stroke-width='4' stroke-linecap='round'/>
+    <path d='M54 139 Q37 151 31 174 M126 140 Q145 149 151 173' fill='none' stroke='#9cb278' stroke-width='13' stroke-linecap='round'/>
+    <path d='M28 175 L22 153 L42 158Z M153 174 L142 158 L164 154Z' fill='{accent}' stroke='#302843' stroke-width='3'/>
+    <path d='M59 48 L69 31 L77 51 M105 49 L113 28 L123 49' fill='none' stroke='#f5df9d' stroke-width='5' stroke-linecap='round'/>
+    {"<path d='M57 85 L65 102 M126 83 L118 100' stroke='#ffe3c2' stroke-width='5' opacity='.9'/>" if hurt else ""}</svg>"""
 
 
-def open_shop(return_screen: str = "map") -> None:
-    S["return_screen"] = return_screen
-    S["screen"] = "shop"
+def castle_svg(x: int, y: int, num: int, color: str, status: str, title: str) -> str:
+    shade = color if status != "locked" else "#83919a"
+    flag = "#ffd753" if status == "open" else ("#79d28b" if status == "done" else "#d2d7df")
+    return f"""<g class='castle {status}' transform='translate({x} {y})'>
+      <ellipse cx='0' cy='47' rx='67' ry='15' fill='rgba(40,104,73,.18)'/>
+      <path d='M-50 35 V-16 H-32 V-43 H-14 V-16 H14 V-43 H32 V-16 H50 V35Z' fill='{shade}' stroke='#4f4772' stroke-width='5' stroke-linejoin='round'/>
+      <path d='M-32 -43 L-23 -65 L-14 -43 M14 -43 L23 -65 L32 -43' fill='{shade}' stroke='#4f4772' stroke-width='5'/>
+      <path d='M-50 -16 L-42 -32 L-34 -16 M34 -16 L42 -32 L50 -16' fill='{shade}' stroke='#4f4772' stroke-width='5'/>
+      <path d='M-9 35 V8 Q0 -5 9 8 V35Z' fill='#fff4cc' stroke='#514879' stroke-width='4'/>
+      <rect x='-34' y='-4' width='12' height='13' rx='3' fill='#fff4cc'/><rect x='22' y='-4' width='12' height='13' rx='3' fill='#fff4cc'/>
+      <path d='M30 -56 V-87' stroke='#584778' stroke-width='4'/><path d='M31 -86 L57 -79 L31 -70Z' fill='{flag}'/>
+      <circle cx='0' cy='-104' r='19' fill='white' stroke='#514879' stroke-width='4'/><text x='0' y='-97' text-anchor='middle' font-size='22' font-weight='1000' fill='#3e356a'>{num}</text>
+      <text x='0' y='75' text-anchor='middle' font-size='19' font-weight='1000' fill='#304366'>{title}</text>
+      {"<path d='M-61 -28 L-49 -19 M50 -48 L62 -38' stroke='#fff5b8' stroke-width='5' stroke-linecap='round'/>" if status == "open" else ""}
+    </g>"""
 
 
-def open_spellbook(return_screen: str = "map") -> None:
-    S["return_screen"] = return_screen
-    S["screen"] = "spellbook"
+def island_map() -> str:
+    coords = [(120, 365), (310, 225), (500, 377), (690, 218), (880, 335)]
+    castles = []
+    for index, ((x, y), castle) in enumerate(zip(coords, CASTLES)):
+        if index in S["completed_castles"]:
+            status = "done"
+        elif index == S["unlocked_castle"]:
+            status = "open"
+        else:
+            status = "locked"
+        castles.append(castle_svg(x, y, index + 1, castle["color"], status, castle["place"]))
+    return """<div class='map-art'><svg viewBox='0 0 1000 600' preserveAspectRatio='xMidYMid slice' role='img' aria-label='A bright island with five numbered castles, mountains, forests, rivers and ocean'>
+    <defs><linearGradient id='ocean' x1='0' y1='0' x2='0' y2='1'><stop stop-color='#7ce0ef'/><stop offset='1' stop-color='#39a9d8'/></linearGradient><linearGradient id='island' x1='0' y1='0' x2='0' y2='1'><stop stop-color='#d7f4a0'/><stop offset='1' stop-color='#75cb82'/></linearGradient></defs>
+    <rect width='1000' height='600' fill='url(#ocean)'/>
+    <g fill='none' stroke='#c5f6ff' stroke-width='8' stroke-linecap='round' opacity='.75'><path d='M25 113 Q68 91 112 113 T198 113'/><path d='M736 99 Q779 77 822 99 T908 99'/><path d='M793 521 Q836 499 879 521 T965 521'/><path d='M-10 472 Q30 450 70 472 T150 472'/></g>
+    <path d='M0 323 Q75 245 142 271 Q220 308 278 221 Q343 145 411 208 Q462 265 526 232 Q603 187 661 236 Q736 295 790 231 Q869 151 931 223 Q977 270 1000 260 L1000 600 L0 600Z' fill='#e6cc7e'/>
+    <path d='M0 308 Q75 230 142 256 Q220 293 278 206 Q343 130 411 193 Q462 250 526 217 Q603 172 661 221 Q736 280 790 216 Q869 136 931 208 Q977 255 1000 245 L1000 600 L0 600Z' fill='url(#island)' stroke='#60b877' stroke-width='8'/>
+    <path d='M453 253 C403 289 437 324 388 357 S390 425 445 432 S496 495 445 536' fill='none' stroke='#67cde4' stroke-width='18' stroke-linecap='round'/>
+    <path d='M447 254 C401 290 434 323 385 356 S390 422 443 432' fill='none' stroke='#c6f6ff' stroke-width='5' stroke-linecap='round'/>
+    <g fill='#a7c4df' stroke='white' stroke-width='7'><path d='M90 291 L146 188 L204 291Z'/><path d='M144 291 L198 216 L246 291Z'/><path d='M762 240 L821 130 L884 240Z'/><path d='M822 240 L873 172 L923 240Z'/></g>
+    <g fill='#fff'><path d='M125 229 L146 188 L169 229 L148 222Z'/><path d='M800 170 L821 130 L845 173 L820 164Z'/></g>
+    <g fill='#318c60'><path d='M218 458 l32 -80 32 80Z M250 474 l26 -68 26 68Z M188 481 l22 -57 23 57Z M727 415 l29 -72 30 72Z M757 434 l25 -63 26 63Z M696 440 l20 -51 20 51Z'/><rect x='244' y='449' width='14' height='29' fill='#8c6249'/><rect x='753' y='407' width='12' height='26' fill='#8c6249'/></g>
+    <g fill='#fff4ad'><circle cx='67' cy='210' r='8'/><circle cx='560' cy='133' r='7'/><circle cx='951' cy='120' r='8'/><circle cx='567' cy='500' r='6'/></g>
+    <g fill='#fff' opacity='.9'><path d='M340 82 q20 -24 40 0 q30 -16 40 12 h-85Z'/><path d='M676 82 q19 -23 38 0 q28 -16 40 12 h-82Z'/></g>
+    <text x='36' y='51' font-size='30' font-weight='1000' fill='white' letter-spacing='3'>THE STARWILDS</text>
+    <text x='764' y='565' font-size='20' font-weight='900' fill='white'>🌊 Sparkle Sea</text>
+    """ + "".join(castles) + "</svg></div>"
 
 
-def nav_buttons() -> None:
-    left, middle, right = st.columns([1, 1, 1])
-    with left:
-        if st.button("🗺️ Quest map", key="nav_map", use_container_width=True):
-            S["screen"] = "map"
-            st.rerun()
-    with middle:
-        if st.button("✨ Spell shop", key="nav_shop", use_container_width=True):
-            open_shop("map")
-            st.rerun()
-    with right:
-        if st.button("📖 Spellbook", key="nav_spellbook", use_container_width=True):
-            open_spellbook("map")
-            st.rerun()
-
-
-def render_banner(title: str, subtitle: str, eyebrow: str = "A magical math adventure") -> None:
-    st.markdown(
-        f"<div class='hero-banner'><div class='eyebrow'>{eyebrow}</div><h1>{title}</h1><p>{subtitle}</p></div>",
-        unsafe_allow_html=True,
-    )
+def render_hero(title: str, subtitle: str, eyebrow: str = "The Starwilds") -> None:
+    st.markdown(f"<div class='hero'><div class='eyebrow'>{eyebrow}</div><h1>{title}</h1><p>{subtitle}</p></div>", unsafe_allow_html=True)
 
 
 def render_home() -> None:
-    render_banner("The Wizard's Math Quest", "Answer math, earn spell gems, and help Kate or Lola save the stars.")
-    st.markdown("### Choose your wizard")
-    player_col, difficulty_col = st.columns([1, 1.35])
-    with player_col:
-        player = st.radio("Who is playing?", ["Kate", "Lola"], horizontal=True, key="home_player")
-        avatar = "🧙🏻‍♀️" if player == "Kate" else "🧙🏽‍♀️"
-        st.markdown(
-            f"<div class='quest-card' style='--accent:#8a72d2'><div class='quest-emoji'>{avatar}</div><div class='quest-name'>Wizard {player}</div><div class='quest-story'>A brave spell-solver ready to help the friendly creatures of the Starwilds.</div></div>",
-            unsafe_allow_html=True,
-        )
-    with difficulty_col:
-        level = st.select_slider(
-            "Choose a starting math level",
-            options=list(MATH_LEVELS),
-            value=1,
-            key="home_math_level",
-        )
-        st.markdown(
-            f"<div class='quest-card' style='--accent:#e5ad4c'><div class='quest-name'>Level {level}: {MATH_LEVELS[level]['title']}</div><div class='quest-story'>{MATH_LEVELS[level]['summary']}. Every battle has 10 questions. You can change the practice level from the quest map.</div></div>",
-            unsafe_allow_html=True,
-        )
-        st.caption("The 1–10 setting changes the math. The story has five unique places to explore, ending at Maldred's tower.")
-
-    with st.expander("How the adventure works"):
-        st.markdown(
-            "1. Visit a place on the quest map and meet its shadow wizard.\n"
-            "2. Solve 10 math questions. A correct answer earns 3 star gems and lets you cast a spell.\n"
-            "3. Spend gems in the spell shop to learn new attack and healing spells.\n"
-            "4. Missed answers show a small explanation. The story keeps going, and a guardian protects your wizard.\n"
-            "5. Collect the five keepsakes and use their light to face Maldred."
-        )
-
-    if st.button("✨ Begin the adventure", type="primary", use_container_width=True, key="begin_adventure"):
-        S["player"] = player
-        S["math_level"] = int(level)
-        S["map_math_level"] = int(level)
-        S["unlocked_stage"] = 0
-        S["completed_stages"] = []
-        S["stardust"] = 8
-        S["owned_spells"] = ["spark", "leaf"]
-        S["maldred_defeated"] = False
-        S["screen"] = "map"
+    render_hero("The Starwilds Wizard Quest", "Choose your wizard and math level. Then help save a magical island from Maldred!")
+    left, right = st.columns([.9, 1.1], gap="large")
+    with left:
+        st.markdown("### Who is playing?")
+        player = st.radio("Choose your wizard", ["Kate", "Lola"], horizontal=True, key="home_player")
+        wizard_color = "#f0a7c5" if player == "Kate" else "#74cfe0"
+        st.markdown(f"<div class='home-card' style='border-top:6px solid {wizard_color}'><div style='font-size:3.5rem'>🧙🏻‍♀️</div><b style='font-size:1.2rem'>Wizard {player}</b><p>A brave spell-caster, ready to protect the Starwilds!</p></div>", unsafe_allow_html=True)
+    with right:
+        st.markdown("### Pick a starting math level")
+        level = st.select_slider("Math level", options=list(MATH_LEVELS), value=1, format_func=lambda n: str(n), key="home_level")
+        cfg = MATH_LEVELS[int(level)]
+        st.markdown(f"<div class='home-card' style='border-top:6px solid #f0bd48'><div style='font-size:2.5rem'>📚 ✨</div><b style='font-size:1.2rem'>Level {level}: {cfg['label']}</b><p>{cfg['summary']}</p></div>", unsafe_allow_html=True)
+        st.caption("You can change the practice level from the island map at any time.")
+    st.markdown("### How to save the island")
+    st.info("Click a castle to meet its bad wizard. Pick one of four spells, solve its math challenge, then click your glowing spell card to cast it. Stronger castles have more health!")
+    if st.button("🏝️ Enter the Starwilds", type="primary", use_container_width=True, key="start_game"):
+        start_adventure(player, int(level))
         st.rerun()
-
-
-def quest_card(stage_index: int) -> None:
-    stage = QUESTS[stage_index]
-    complete = stage_index in S["completed_stages"]
-    available = stage_index <= S["unlocked_stage"]
-    locked_class = " locked" if not available else ""
-    status = "✅ Complete — replay any time" if complete else ("🔓 Ready to explore" if available else "🔒 Complete the earlier place first")
-    boss_line = "Final shadow wizard: Maldred" if stage_index == 4 else f"Shadow wizard: {stage['boss']}"
-    st.markdown(
-        f"<div class='quest-card{locked_class}' style='--accent:{stage['accent']}'><div class='quest-emoji'>{stage['emoji']}</div><div class='quest-name'>Place {stage_index + 1}: {stage['name']}</div><div class='quest-meta'>{stage['subtitle']} · {boss_line}</div><div class='quest-story'>{stage['story']}</div><div class='quest-meta'>{status}</div></div>",
-        unsafe_allow_html=True,
-    )
-    label = "🔁 Replay place" if complete else "🪄 Enter this place"
-    if available:
-        if st.button(label, key=f"enter_stage_{stage_index}", use_container_width=True):
-            start_battle(stage_index)
-            st.rerun()
-    else:
-        st.button("Finish the earlier place to unlock", key=f"locked_stage_{stage_index}", disabled=True, use_container_width=True)
-
-
-def map_art() -> str:
-    """A bright, original island map with a winding route and five story landmarks."""
-    points = [(115, 238), (300, 145), (500, 258), (695, 132), (880, 230)]
-    nodes = []
-    for index, (stage, (x, y)) in enumerate(zip(QUESTS, points)):
-        ready = index <= S["unlocked_stage"]
-        fill = "#ffd75e" if ready else "#9ba8b7"
-        nodes.append(
-            f"<g><circle cx='{x}' cy='{y}' r='31' fill='{fill}' stroke='white' stroke-width='7'/>"
-            f"<text x='{x}' y='{y+10}' text-anchor='middle' font-size='31'>{stage['emoji']}</text>"
-            f"<text x='{x}' y='{y+57}' text-anchor='middle' font-size='15' font-weight='900' fill='#283c68'>{index+1}</text></g>"
-        )
-    return """<div class='map-wrap'><svg class='map-svg' viewBox='0 0 1000 400' role='img' aria-label='A colorful island map with five quest stops'>
-      <defs><linearGradient id='sea' x1='0' y1='0' x2='0' y2='1'><stop stop-color='#86e0ef'/><stop offset='1' stop-color='#4fb6df'/></linearGradient><linearGradient id='land' x1='0' y1='0' x2='0' y2='1'><stop stop-color='#c7ef9e'/><stop offset='1' stop-color='#75c883'/></linearGradient></defs>
-      <rect width='1000' height='400' fill='url(#sea)'/>
-      <path d='M0 290 Q80 210 170 235 Q250 270 325 190 Q390 125 470 185 Q535 235 600 165 Q700 75 770 155 Q840 220 930 170 Q970 150 1000 160 L1000 400 L0 400Z' fill='url(#land)' stroke='#61b978' stroke-width='6'/>
-      <path d='M105 240 C175 235 220 170 300 145 S430 210 500 258 S640 195 695 132 S820 175 880 230' fill='none' stroke='#fff4b5' stroke-width='14' stroke-linecap='round' stroke-dasharray='2 22'/>
-      <path d='M190 192 l40 -65 40 65Z M226 192 l29 -46 30 46Z M594 190 l41 -70 42 70Z M631 190 l28 -47 32 47Z' fill='#9fb8d8' stroke='white' stroke-width='5'/>
-      <path d='M190 192 l20 -33 20 33Z M594 190 l20 -34 20 34Z' fill='#fff'/>
-      <g fill='#328d64'><path d='M390 219 l25 -60 25 60Z M407 244 l22 -53 22 53Z M360 253 l18 -43 18 43Z'/><rect x='409' y='214' width='12' height='28' fill='#8b654b'/></g>
-      <g fill='#fff8cf' opacity='.95'><circle cx='90' cy='90' r='7'/><circle cx='450' cy='75' r='6'/><circle cx='830' cy='75' r='7'/></g>
-      <text x='45' y='48' font-size='24' font-weight='900' fill='#fff'>THE STARWILDS</text>
-      <text x='735' y='365' font-size='18' font-weight='900' fill='#fff'>🌊 Sparkle Sea</text>
-      """ + "".join(nodes) + "</svg></div>"
 
 
 def render_map() -> None:
-    nav_buttons()
-    render_banner(f"Welcome, Wizard {S['player']}!", "The Starwilds need your help. Choose the next place on your map.", "Your quest map")
-    a, b, c = st.columns(3)
-    with a:
-        st.markdown(f"<span class='status-pill'>✨ {S['stardust']} star gems</span>", unsafe_allow_html=True)
-    with b:
-        st.markdown(f"<span class='status-pill'>📚 Math level {S['math_level']} of 10</span>", unsafe_allow_html=True)
-    with c:
-        st.markdown(f"<span class='status-pill'>🏵️ {len(S['completed_stages'])} of 5 keepsakes</span>", unsafe_allow_html=True)
+    render_hero(f"Welcome, Wizard {S['player']}!", "Choose the glowing castle to explore. Defeat each wizard to open the next castle.", "Your magical island map")
+    status_left, status_right = st.columns(2)
+    with status_left:
+        st.markdown(f"<span class='pill'>📚 Math level {S['math_level']} of 10</span><span class='pill'>🏰 {len(S['completed_castles'])} of 5 castles cleared</span>", unsafe_allow_html=True)
+    with status_right:
+        updated_level = st.select_slider("Practice level", options=list(MATH_LEVELS), value=S["math_level"], key="map_level", format_func=lambda n: str(n))
+        S["math_level"] = int(updated_level)
+        st.caption(MATH_LEVELS[int(updated_level)]["summary"])
+    st.markdown("### Click a castle to play")
+    st.markdown("<div class='island-intro'>Follow the golden trail across the ocean, mountains, forests, and bridges. A glowing castle is ready!</div>", unsafe_allow_html=True)
+    with st.container(key="island_map"):
+        st.markdown(island_map(), unsafe_allow_html=True)
+        for index, castle in enumerate(CASTLES):
+            available = index == S["unlocked_castle"] and index not in S["completed_castles"]
+            if st.button(f"Castle {index + 1}: {castle['place']}", key=f"castle_hit_{index}", disabled=not available, help=f"Castle {index + 1}: {castle['place']} — {castle['boss']}"):
+                enter_castle(index)
+                st.rerun()
+    if S.get("map_notice"):
+        st.markdown(f"<div class='notice'>{S['map_notice']}</div>", unsafe_allow_html=True)
+    if S["adventure_over"]:
+        st.markdown("<div class='challenge-finish'><div style='font-size:3rem'>🌟 🧙‍♀️ 🏰 🌟</div><h2>Maldred is defeated!</h2><p>The Starwilds sparkle again thanks to your math magic.</p></div>", unsafe_allow_html=True)
+        if st.button("🔁 Start a new adventure", key="new_adventure", use_container_width=True):
+            S["screen"] = "home"
+            st.rerun()
 
-    level_options = list(MATH_LEVELS)
-    if "map_math_level" not in st.session_state:
-        st.session_state["map_math_level"] = S["math_level"]
-    new_level = st.select_slider(
-        "Practice level for the next battle",
-        options=level_options,
-        key="map_math_level",
+
+def render_battle_scene() -> None:
+    index = S["active_castle"]
+    castle = CASTLES[index]
+    enemy_ratio = max(0, S["enemy_hp"]) / castle["hp"]
+    hero_color = "#eaa5c5" if S["player"] == "Kate" else "#54bfd5"
+    arena_class = ["meadow", "woods", "caves", "sky", "tower"][index]
+    hurt = S["enemy_hp"] < castle["hp"]
+    effect = SPELLS.get(S.get("last_spell") or "")
+    effect_html = f"<div class='spell-impact'>{effect['emoji']}</div><div class='boss-hurt'>−{S.get('last_damage', 0)}!</div>" if effect and hurt else ""
+    st.markdown(
+        f"""<div class='battle-arena {arena_class}'>
+        <div class='arena-caption'>{castle['emoji']} {castle['place']} · {castle['subtitle']}</div>
+        <div class='duel'>
+          <div class='character hero'><div class='head-health'><b>{S['player']}</b><div class='health-track'><span class='health-fill' style='width:100%'></span></div></div>{hero_svg(hero_color)}<div class='char-name'>Wizard {S['player']}</div></div>
+          {effect_html}
+          <div class='character boss {'hurt' if hurt else ''}'><div class='head-health'><b>{castle['boss']}</b><div class='health-track'><span class='health-fill' style='width:{enemy_ratio * 100:.1f}%'></span></div></div>{boss_svg(index, hurt)}<div class='char-name'>{castle['boss']}</div></div>
+        </div></div>""",
+        unsafe_allow_html=True,
     )
-    S["math_level"] = int(new_level)
-    st.caption(f"Level {new_level}: {MATH_LEVELS[new_level]['summary']}")
+    st.caption(castle["scene"])
 
-    st.markdown("### Follow the magic trail!")
-    st.markdown(map_art(), unsafe_allow_html=True)
-    node_cols = st.columns(5, gap="small")
-    for stage_index, col in enumerate(node_cols):
-        with col:
-            stage = QUESTS[stage_index]
-            available = stage_index == S["unlocked_stage"] and stage_index not in S["completed_stages"]
-            complete = stage_index in S["completed_stages"]
-            status = "✅" if complete else ("👣 Go!" if available else "🔒")
-            st.markdown(f"<div class='map-stop'><span>{stage['emoji']}</span><strong>{stage_index + 1}. {stage['name']}</strong><strong>{status}</strong></div>", unsafe_allow_html=True)
-            if available:
-                label = "🔁 Visit again" if complete else "🪄 Explore!"
-                if st.button(label, key=f"enter_stage_{stage_index}", use_container_width=True):
-                    start_battle(stage_index)
-                    st.rerun()
-            else:
-                st.button("Path is locked", key=f"locked_stage_{stage_index}", disabled=True, use_container_width=True)
+
+def render_spell_choices() -> None:
+    st.markdown("### 🪄 Choose a spell to earn")
+    st.caption("Each correct answer fills the spell's power. Wrong answers don't count—take your time!")
+    for spell_id, spell in SPELLS.items():
+        st.markdown(
+            f"<div class='spell-pick' style='border-left:6px solid {spell['color']}'><div class='spell-title'>{spell['emoji']} {spell['name']}</div><div class='spell-detail'>{spell['description']}</div><span class='spell-chip'>{spell['questions']} correct answers · {spell['damage']} damage</span></div>",
+            unsafe_allow_html=True,
+        )
+        if st.button(f"Get {spell['name']}", key=f"get_spell_{spell_id}", use_container_width=True):
+            begin_spell_challenge(spell_id)
+            st.rerun()
 
 
 def render_battle() -> None:
-    stage = QUESTS[S["current_stage"]]
-    q_index = S["question_index"]
-    question = S["questions"][q_index]
-    answered_count = q_index if S["turn_mode"] in ("question", "intro") else q_index + 1
-    st.markdown(
-        f"<div class='arena' style='--accent:{stage['accent']}'><div class='arena-title'>{stage['emoji']} {stage['name']} · {stage['subtitle']}</div><div class='arena-scene'>{stage['scene']}</div><div class='quest-story'>{stage['story']}</div></div>",
-        unsafe_allow_html=True,
-    )
-    hero_col, enemy_col = st.columns(2)
-    with hero_col:
-        st.markdown(f"<div class='battle-portrait'>🧙‍♀️</div><div class='battle-label'>Wizard {S['player']}'s shield</div>", unsafe_allow_html=True)
-        st.progress(S["hero_hp"] / 100, text=f"{S['hero_hp']} shield hearts")
-    with enemy_col:
-        st.markdown(f"<div class='battle-portrait'>{stage['boss_emoji']}</div><div class='battle-label'>{stage['boss']}'s shadow shield</div>", unsafe_allow_html=True)
-        st.progress(S["enemy_hp"] / S["enemy_max_hp"], text=f"{S['enemy_hp']} shield power left")
-
-    if S["turn_mode"] == "intro":
-        hero_avatar = "🧙🏻‍♀️" if S["player"] == "Kate" else "🧙🏽‍♀️"
-        st.markdown(f"<div class='battle-stage'><div class='battle-duel'><div><div class='duel-avatar'>{hero_avatar}</div><b>Wizard {S['player']}</b></div><div style='font-size:2rem'>⚡</div><div><div class='duel-avatar'>{stage['boss_emoji']}</div><b>{stage['boss']}</b></div></div><div class='speech-pop'>Click here to get spells! Choose a spell, then solve math to charge it.</div></div>", unsafe_allow_html=True)
-        owned = [sid for sid in S["owned_spells"] if SPELLS[sid]["kind"] == "attack"]
-        peek = " · ".join(f"{SPELLS[sid]['emoji']} {SPELLS[sid]['name']}: {SPELLS[sid]['power']} power, {SPELLS[sid].get('charge',1)} correct answer{'s' if SPELLS[sid].get('charge',1) != 1 else ''}" for sid in owned)
-        st.info("Your spells: " + peek)
-        left, right = st.columns(2)
-        with left:
-            if st.button("✨ Click here to get spells", key="battle_get_spells", type="primary", use_container_width=True):
-                open_shop("battle")
-                st.rerun()
-        with right:
-            if st.button("⚔️ Start the wizard battle!", key="battle_start", use_container_width=True):
-                S["turn_mode"] = "question"
-                st.rerun()
-        st.caption("Every battle has 10 math questions. Each correct answer earns one spell charge; stronger spells need more correct answers to charge.")
-        return
-
-    st.progress(answered_count / 10, text=f"{answered_count} of 10 math questions answered")
-    st.markdown(
-        f"<div class='question-box'><div class='question-caption'>Question {q_index + 1} of 10</div><div class='question-math'>{question['expression']} = ?</div></div>",
-        unsafe_allow_html=True,
-    )
-
-    if S["turn_mode"] == "question":
-        st.markdown("### Which number belongs in the spell circle?")
-        if S["attempt_count"] > 0:
-            st.caption("One more try — use the hint to help you think it through.")
-        if not S["hint_shown"] and st.button("💡 Show me a hint", key=f"hint_{S['current_stage']}_{q_index}"):
-            S["hint_shown"] = True
-        if S["hint_shown"]:
-            st.info(question["hint"])
-        answer_cols = st.columns(3, gap="medium")
-        for col, answer in zip(answer_cols, question["choices"]):
-            with col:
-                if st.button(str(answer), key=f"answer_{S['current_stage']}_{q_index}_{answer}", use_container_width=True):
-                    answer_question(answer)
-                    st.rerun()
-
-    elif S["turn_mode"] == "spell":
-        st.success(S["feedback"])
-        if S["is_replay"]:
-            st.caption("Replay battle: your star gems are safe, but you won't earn extra gems for this place.")
-        else:
-            st.caption("+3 star gems! Choose one of your learned spells to cast.")
-        st.markdown(f"### Choose a spell · {S.get('spell_charge', 0)} charge{'s' if S.get('spell_charge', 0) != 1 else ''} ready")
-        owned = [spell_id for spell_id in S["owned_spells"] if spell_id in SPELLS]
-        for row_start in range(0, len(owned), 2):
-            spell_cols = st.columns(2, gap="medium")
-            for offset, col in enumerate(spell_cols):
-                spell_pos = row_start + offset
-                if spell_pos < len(owned):
-                    spell_id = owned[spell_pos]
-                    spell = SPELLS[spell_id]
-                    power_label = f"{spell['power']} damage" if spell["kind"] == "attack" else f"up to {spell['power']} hearts"
-                    charge_cost = spell.get("charge", 1)
-                    with col:
-                        st.markdown(
-                            f"<div class='spell-card'><div class='spell-icon'>{spell['emoji']}</div><div class='spell-name'>{spell['name']}</div><div class='spell-detail'>{spell['description']}<br><b>{power_label}</b></div><span class='charge-chip'>Needs {charge_cost} correct answer{'s' if charge_cost != 1 else ''}</span></div>",
-                            unsafe_allow_html=True,
-                        )
-                        if st.button(f"Cast {spell['name']} · {spell['power']} power", key=f"cast_{spell_id}_{q_index}", disabled=S.get("spell_charge", 0) < charge_cost, use_container_width=True):
-                            cast_spell(spell_id)
-                            st.rerun()
-        if st.button("💫 Save my charge and answer another question", key=f"save_charge_{q_index}", use_container_width=True):
-            S["round_message"] = f"You saved {S.get('spell_charge', 0)} spell charge(s) for a stronger spell."
-            S["last_spell"] = ""
-            S["turn_mode"] = "spell_result"
-            st.rerun()
-
-    elif S["turn_mode"] == "spell_result":
-        spell_id = S.get("last_spell", "")
-        if spell_id in SPELLS:
-            cast_spell_info = SPELLS[spell_id]
-            hero_avatar = "🧙🏻‍♀️" if S["player"] == "Kate" else "🧙🏽‍♀️"
-            st.markdown(f"<div class='spell-effect'><span>{hero_avatar}</span><b>{cast_spell_info['emoji']} {cast_spell_info['name']}!</b><span>{stage['boss_emoji']}</span></div>", unsafe_allow_html=True)
-        st.success(S["round_message"])
-        if q_index == 9:
-            st.markdown("### The last spell is ready!")
-            st.caption("Answer all 10 questions to finish this battle and claim your keepsake.")
-            if st.button("🌟 Finish the battle", key="finish_last_correct", type="primary", use_container_width=True):
-                next_question()
-                st.rerun()
-        else:
-            if st.button("➡️ Next math question", key="next_after_spell", type="primary", use_container_width=True):
-                next_question()
-                st.rerun()
-
-    elif S["turn_mode"] == "first_miss":
-        st.info(S["feedback"])
-        if S["guardian_save"]:
-            st.success("Your friendly guardian caught you and restored some shield hearts. Keep going!")
-        retry_col, solution_col = st.columns(2, gap="medium")
-        with retry_col:
-            if st.button("💡 Hint and try once more", key="retry_with_hint", type="primary", use_container_width=True):
-                S["hint_shown"] = True
-                S["turn_mode"] = "question"
-                st.rerun()
-        with solution_col:
-            if st.button("📖 Show me how to solve it", key="show_solution", use_container_width=True):
-                S["feedback"] = question["explanation"]
-                S["turn_mode"] = "show_solution"
-                st.rerun()
-
-    elif S["turn_mode"] in ("miss_feedback", "show_solution"):
-        st.info(S["feedback"])
-        if S["turn_mode"] == "miss_feedback":
-            st.caption("A little shadow bonk tapped your shield. You'll get another chance on the next question.")
-        button_label = "🌟 Finish the battle" if q_index == 9 else "➡️ I understand — next question"
-        if st.button(button_label, key="next_after_miss", type="primary", use_container_width=True):
-            next_question()
-            st.rerun()
-
-    elif S["turn_mode"] == "encounter_done":
-        st.success(f"You solved all 10 questions and chased {stage['boss']} away!")
-        st.markdown(f"### Keepsake found: {stage['reward']} 🏵️")
-        st.markdown(f"**Correct answers:** {S['battle_correct']} of 10")
-        st.markdown(f"**Star gems earned in the battle:** {S['battle_earned']}")
-        if st.button("🏵️ Claim the keepsake", key="claim_keepsake", type="primary", use_container_width=True):
-            finish_battle()
-            st.rerun()
-
-
-def render_shop() -> None:
-    back_label = {"map": "Back to the quest map", "battle": "Back to the battle", "reward": "Back to your reward"}.get(S["return_screen"], "Back")
-    if st.button(f"← {back_label}", key="shop_back"):
-        S["screen"] = S["return_screen"]
-        st.rerun()
-    render_banner("The Spell Shop", "Spend star gems to learn spells for your next battle.", "A friendly shop in the Starwilds")
-    st.markdown(f"### ✨ You have {S['stardust']} star gems")
-    st.caption("Learning a spell is a one-time purchase. Casting a learned spell is free.")
-
-    spell_ids = list(SPELLS)
-    for row_start in range(0, len(spell_ids), 2):
-        cols = st.columns(2, gap="medium")
-        for offset, col in enumerate(cols):
-            pos = row_start + offset
-            if pos < len(spell_ids):
-                spell_id = spell_ids[pos]
-                spell = SPELLS[spell_id]
-                owned = spell_id in S["owned_spells"]
-                charge_text = f"{spell.get('charge', 1)} correct answer{'s' if spell.get('charge', 1) != 1 else ''} to charge"
-                kind_label = f"⚔️ {spell['power']} shield damage · {charge_text}" if spell["kind"] == "attack" else f"💚 Heal up to {spell['power']} hearts · {charge_text}"
-                with col:
-                    st.markdown(
-                        f"<div class='spell-card'><div class='spell-icon'>{spell['emoji']}</div><div class='spell-name'>{spell['name']}</div><div class='spell-detail'>{spell['description']}<br><b>{kind_label}</b></div><span class='status-pill'>Cost: {spell['cost']} gems</span></div>",
-                        unsafe_allow_html=True,
-                    )
-                    if owned:
-                        st.success("Learned and ready to cast")
-                    elif S["stardust"] >= spell["cost"]:
-                        if st.button(f"Learn {spell['name']}", key=f"buy_{spell_id}", use_container_width=True):
-                            S["stardust"] -= spell["cost"]
-                            S["owned_spells"].append(spell_id)
-                            st.rerun()
-                    else:
-                        st.button(f"Need {spell['cost'] - S['stardust']} more gems", key=f"need_{spell_id}", disabled=True, use_container_width=True)
-
-
-def render_spellbook() -> None:
-    if st.button("← Back to the quest map", key="spellbook_back"):
-        S["screen"] = S["return_screen"]
-        st.rerun()
-    render_banner("Your Spellbook", "All learned spells are ready to cast after a correct answer.", "Magic you have learned")
-    st.markdown(f"### ✨ Star gems: {S['stardust']}")
-    for spell_id in S["owned_spells"]:
-        spell = SPELLS[spell_id]
-        kind_label = f"Deals {spell['power']} shield damage" if spell["kind"] == "attack" else f"Heals up to {spell['power']} shield hearts"
-        st.markdown(
-            f"<div class='spell-card'><span class='spell-icon'>{spell['emoji']}</span> &nbsp; <span class='spell-name'>{spell['name']}</span><br><div class='spell-detail'>{spell['description']} · {kind_label}</div></div>",
-            unsafe_allow_html=True,
-        )
-    st.caption("Need a new spell? Visit the shop from the quest map.")
-
-
-def render_reward() -> None:
-    stage = QUESTS[S["current_stage"]]
-    render_banner(f"{stage['reward']} collected!", f"The path to {QUESTS[S['unlocked_stage']]['name']} is open.", "Quest complete")
-    accuracy = S["battle_correct"]
-    st.markdown(f"### Great wizarding, {S['player']}! ✨")
-    st.markdown(f"You answered **{accuracy} of 10** questions correctly and earned **{S['battle_earned']} star gems**.")
-    st.progress(accuracy / 10, text=f"Math power: {accuracy} correct answers")
-    st.markdown(f"**Keepsake:** {stage['reward']} {stage['emoji']}  ")
-    st.markdown(f"**Next place:** {QUESTS[S['unlocked_stage']]['name']} {QUESTS[S['unlocked_stage']]['emoji']}")
-    left, right = st.columns(2)
+    castle = CASTLES[S["active_castle"]]
+    render_hero(f"Castle {S['active_castle'] + 1}: {castle['boss']}!", "Choose a spell challenge, earn your magic, and cast at the right moment.", "Wizard battle")
+    left, right = st.columns([.9, 1.2], gap="large")
     with left:
-        if st.button("✨ Visit the spell shop", key="reward_shop", type="primary", use_container_width=True):
-            open_shop("reward")
-            st.rerun()
+        st.markdown("### ✨ Your spellbook")
+        if S.get("challenge_notice"):
+            st.markdown(f"<div class='notice'>{S['challenge_notice']}</div>", unsafe_allow_html=True)
+        if S["spell_inventory"]:
+            st.markdown("#### Ready to cast")
+            for inventory_index, spell_id in enumerate(list(S["spell_inventory"])):
+                spell = SPELLS[spell_id]
+                is_new = spell_id == S.get("new_spell_highlight")
+                st.markdown(
+                    f"<div class='spell-pick' style='border:2px solid {spell['color']};background:{'#fff8d8' if is_new else '#fff'}'><div class='spell-title'>{'🌟 NEW! ' if is_new else ''}{spell['emoji']} {spell['name']}</div><div class='spell-detail'>{spell['damage']} damage to {castle['boss']}</div></div>",
+                    unsafe_allow_html=True,
+                )
+                if st.button(f"⚡ Cast {spell['name']} · {spell['damage']} damage", key=f"owned_spell_{inventory_index}", use_container_width=True):
+                    cast_spell(inventory_index)
+                    st.rerun()
+        else:
+            st.markdown("<div class='notice'>Your spellbook is empty. Earn your first spell below!</div>", unsafe_allow_html=True)
+        st.divider()
+        render_spell_choices()
     with right:
-        if st.button("🗺️ Continue to the quest map", key="reward_map", use_container_width=True):
-            S["screen"] = "map"
-            st.rerun()
+        render_battle_scene()
+        st.markdown(f"<span class='pill'>💜 {S['enemy_hp']} / {castle['hp']} shadow hearts left</span><span class='pill'>🧙‍♀️ {len(S['spell_inventory'])} spell{'s' if len(S['spell_inventory']) != 1 else ''} ready</span>", unsafe_allow_html=True)
 
 
-def render_ending() -> None:
-    render_banner("Maldred's shadow is gone!", "The Starwilds shine again because you kept learning, one spell at a time.", "The final quest")
-    st.markdown(
-        "<div class='victory-banner'><div style='font-size:4rem'>🌟 🧙‍♀️ 🏰 🌟</div><div class='eyebrow'>A story saved by math</div><h1>Well done, Wizard "
-        + S["player"]
-        + "!</h1><p>You gathered five keepsakes, faced Maldred, and brought the stars back to the Starwilds.</p></div>",
-        unsafe_allow_html=True,
-    )
-    st.markdown("### Your keepsakes")
-    keepsakes = st.columns(5)
-    for col, stage in zip(keepsakes, QUESTS):
+def render_spell_challenge() -> None:
+    spell_id = S["challenge_spell"]
+    spell = SPELLS[spell_id]
+    total = spell["questions"]
+    index = S["challenge_index"]
+    problem = S["challenge_questions"][index]
+    render_hero(f"Power up {spell['name']}!", f"Solve {total} questions correctly to earn this spell and take it back to the battle.", "Spell challenge")
+    st.markdown(f"<div class='challenge-card' style='border-top:7px solid {spell['color']}'><div style='font-size:3.5rem'>{spell['emoji']}</div><h2>{spell['name']}</h2><p>{spell['description']}</p><span class='pill'>{spell['questions']} correct answers</span><span class='pill'>{spell['damage']} damage</span></div>", unsafe_allow_html=True)
+    st.progress(index / total, text=f"{index} of {total} correct answers")
+    st.markdown(f"<div class='question-box'><div class='question-caption'>Spell question {index + 1} of {total}</div><div class='challenge-math'>{problem['expression']} = ?</div></div>", unsafe_allow_html=True)
+    if S.get("challenge_feedback"):
+        if S["challenge_feedback"].startswith("Yes"):
+            st.success(S["challenge_feedback"])
+        else:
+            st.info(S["challenge_feedback"])
+    hint_col, blank = st.columns([1, 3])
+    with hint_col:
+        if st.button("💡 Counting hint", key=f"challenge_hint_{index}_{S['challenge_attempt']}"):
+            st.info(problem["hint"])
+    options = st.columns(3, gap="medium")
+    for col, answer in zip(options, problem["choices"]):
         with col:
-            st.markdown(f"<div class='quest-card' style='--accent:{stage['accent']};text-align:center'><div class='quest-emoji'>{stage['emoji']}</div><div class='quest-meta'>{stage['reward']}</div></div>", unsafe_allow_html=True)
-    st.markdown(f"### ✨ Star gems left: {S['stardust']}")
-    if st.button("🗺️ Visit the completed quest map", key="ending_map", use_container_width=True):
-        S["screen"] = "map"
+            if st.button(str(answer), key=f"challenge_answer_{index}_{S['challenge_attempt']}_{answer}", use_container_width=True):
+                answer_challenge(answer)
+                st.rerun()
+    if st.button("← Back to the wizard battle", key="leave_challenge", use_container_width=True):
+        S["screen"] = "battle"
+        S["challenge_feedback"] = ""
         st.rerun()
-    if st.button("🔁 Start a new adventure", key="new_adventure", use_container_width=True):
+
+
+def render_app() -> None:
+    if S["screen"] == "home":
+        render_home()
+    elif S["screen"] == "map":
+        render_map()
+    elif S["screen"] == "battle":
+        render_battle()
+    elif S["screen"] == "spell_challenge":
+        render_spell_challenge()
+    else:
         S["screen"] = "home"
-        S["maldred_defeated"] = False
         st.rerun()
 
 
-screen = S["screen"]
-if screen == "home":
-    render_home()
-elif screen == "map":
-    render_map()
-elif screen == "battle":
-    render_battle()
-elif screen == "shop":
-    render_shop()
-elif screen == "spellbook":
-    render_spellbook()
-elif screen == "reward":
-    render_reward()
-elif screen == "ending":
-    render_ending()
-else:
-    S["screen"] = "home"
-    st.rerun()
+render_app()
