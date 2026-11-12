@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 import random
 import streamlit as st
 
@@ -67,7 +68,7 @@ div.stButton > button:disabled { color:#aaa8b7; background:#e7e6eb; border-color
 /* The map artwork is static SVG; actual Streamlit buttons are transparent, positioned hit areas over each castle. */
 .st-key-island_map { position:relative; height:580px; min-height:430px; overflow:hidden; border:7px solid white; border-radius:32px; box-shadow:0 16px 32px rgba(35,93,143,.2); background:#69cce5; margin:.45rem 0 1rem; }
 .st-key-island_map .map-art { position:absolute; inset:0; width:100%; height:100%; z-index:0; }
-.st-key-island_map .map-art svg { width:100%; height:100%; display:block; }
+.st-key-island_map .map-art img { width:100%; height:100%; display:block; object-fit:fill; }
 .st-key-island_map [class*="st-key-castle_hit_"] { position:absolute!important; z-index:3; width:10%; height:17%; min-width:54px; }
 .st-key-island_map .st-key-castle_hit_0 { left:6.5%; top:54%; }
 .st-key-island_map .st-key-castle_hit_1 { left:25.5%; top:28%; }
@@ -111,8 +112,6 @@ div.stButton > button:disabled { color:#aaa8b7; background:#e7e6eb; border-color
 .spell-pick .spell-title { font-size:1rem; font-weight:1000; color:#352e64; }
 .spell-pick .spell-detail { font-size:.84rem; color:#6a6480; line-height:1.3; }
 .spell-chip { display:inline-block; padding:.22rem .55rem; border-radius:999px; background:#fff2c7; color:#65501c; font-weight:900; font-size:.8rem; margin-top:.3rem; }
-.st-key-owned_spell_0 button,.st-key-owned_spell_1 button,.st-key-owned_spell_2 button,.st-key-owned_spell_3 button { border-color:#f3c853!important; background:linear-gradient(135deg,#fff9d9,#fff)!important; box-shadow:0 0 0 3px rgba(255,210,73,.22),0 5px 0 rgba(82,61,23,.1)!important; }
-.st-key-owned_spell_0 button { animation:spell-ready 1.7s ease-in-out infinite; }
 @keyframes spell-ready { 50% { box-shadow:0 0 0 6px rgba(255,210,73,.12),0 5px 0 rgba(82,61,23,.1)!important; } }
 .challenge-card { border-radius:26px; padding:1.3rem; background:linear-gradient(135deg,#fff,#f2edff); border:2px solid white; box-shadow:0 12px 28px rgba(51,42,99,.11); text-align:center; margin:.6rem 0 1rem; }
 .challenge-math { font-size:3rem; font-weight:1000; color:#30285f; padding:.6rem; }
@@ -205,6 +204,8 @@ def begin_spell_challenge(spell_id: str) -> None:
     S["challenge_index"] = 0
     S["challenge_attempt"] = 0
     S["challenge_feedback"] = ""
+    S["last_spell"] = None
+    S["last_damage"] = 0
     S["screen"] = "spell_challenge"
 
 
@@ -314,7 +315,7 @@ def island_map() -> str:
         else:
             status = "locked"
         castles.append(castle_svg(x, y, index + 1, castle["color"], status, castle["place"]))
-    return """<div class='map-art'><svg viewBox='0 0 1000 600' preserveAspectRatio='xMidYMid slice' role='img' aria-label='A bright island with five numbered castles, mountains, forests, rivers and ocean'>
+    svg = """<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 600' preserveAspectRatio='xMidYMid slice'>
     <defs><linearGradient id='ocean' x1='0' y1='0' x2='0' y2='1'><stop stop-color='#7ce0ef'/><stop offset='1' stop-color='#39a9d8'/></linearGradient><linearGradient id='island' x1='0' y1='0' x2='0' y2='1'><stop stop-color='#d7f4a0'/><stop offset='1' stop-color='#75cb82'/></linearGradient></defs>
     <rect width='1000' height='600' fill='url(#ocean)'/>
     <g fill='none' stroke='#c5f6ff' stroke-width='8' stroke-linecap='round' opacity='.75'><path d='M25 113 Q68 91 112 113 T198 113'/><path d='M736 99 Q779 77 822 99 T908 99'/><path d='M793 521 Q836 499 879 521 T965 521'/><path d='M-10 472 Q30 450 70 472 T150 472'/></g>
@@ -329,7 +330,9 @@ def island_map() -> str:
     <g fill='#fff' opacity='.9'><path d='M340 82 q20 -24 40 0 q30 -16 40 12 h-85Z'/><path d='M676 82 q19 -23 38 0 q28 -16 40 12 h-82Z'/></g>
     <text x='36' y='51' font-size='30' font-weight='1000' fill='white' letter-spacing='3'>THE STARWILDS</text>
     <text x='764' y='565' font-size='20' font-weight='900' fill='white'>🌊 Sparkle Sea</text>
-    """ + "".join(castles) + "</svg></div>"
+    """ + "".join(castles) + "</svg>"
+    encoded_svg = base64.b64encode(svg.encode("utf-8")).decode("ascii")
+    return f"<div class='map-art'><img alt='A bright island with five numbered castles, mountains, forests, rivers and ocean' src='data:image/svg+xml;base64,{encoded_svg}'></div>"
 
 
 def render_hero(title: str, subtitle: str, eyebrow: str = "The Starwilds") -> None:
@@ -436,6 +439,8 @@ def render_battle() -> None:
                     f"<div class='spell-pick' style='border:2px solid {spell['color']};background:{'#fff8d8' if is_new else '#fff'}'><div class='spell-title'>{'🌟 NEW! ' if is_new else ''}{spell['emoji']} {spell['name']}</div><div class='spell-detail'>{spell['damage']} damage to {castle['boss']}</div></div>",
                     unsafe_allow_html=True,
                 )
+                if is_new:
+                    st.markdown(f"<style>.st-key-owned_spell_{inventory_index} button{{border-color:#f3c853!important;background:linear-gradient(135deg,#fff9d9,#fff)!important;box-shadow:0 0 0 3px rgba(255,210,73,.22),0 5px 0 rgba(82,61,23,.1)!important;animation:spell-ready 1.7s ease-in-out infinite}}</style>", unsafe_allow_html=True)
                 if st.button(f"⚡ Cast {spell['name']} · {spell['damage']} damage", key=f"owned_spell_{inventory_index}", use_container_width=True):
                     cast_spell(inventory_index)
                     st.rerun()
