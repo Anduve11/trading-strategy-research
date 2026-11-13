@@ -72,7 +72,7 @@ div.stButton > button:disabled { color:#aaa8b7; background:#e7e6eb; border-color
 .island-intro { color:#514d70; font-weight:800; margin:.35rem 0 .65rem; }
 /* The map artwork is static SVG; actual Streamlit buttons are transparent, positioned hit areas over each castle. */
 .st-key-island_map { position:relative; isolation:isolate; height:min(72vh,760px); min-height:540px; overflow:hidden; border:7px solid white; border-radius:32px; box-shadow:0 16px 32px rgba(35,93,143,.2); background:linear-gradient(180deg,#67d1f2,#239fc9); margin:.35rem 0 .8rem; }
-.st-key-island_map .map-art { position:absolute; inset:0; width:100%; height:100%; z-index:0; }
+.st-key-island_map .map-art { position:absolute; inset:0; width:100%; height:min(72vh,760px)!important; z-index:0; }
 .map-art { color:#fff; }
 .island-sand,.island-land { position:absolute; left:-3%; right:-3%; bottom:-8%; height:80%; clip-path:polygon(0 40%,7% 28%,14% 34%,21% 18%,29% 26%,37% 8%,45% 22%,53% 20%,61% 31%,69% 12%,77% 23%,85% 13%,93% 31%,100% 20%,100% 100%,0 100%); }
 .island-sand { bottom:-11%; background:#e5c27b; z-index:0; }
@@ -116,8 +116,8 @@ div.stButton > button:disabled { color:#aaa8b7; background:#e7e6eb; border-color
 .st-key-island_map [class*="st-key-castle_hit_"] button { width:100%; height:100%; min-height:0; color:transparent!important; background:transparent!important; border:2px solid transparent!important; box-shadow:none!important; padding:0!important; font-size:0!important; }
 .st-key-island_map [class*="st-key-castle_hit_"] button:hover { background:rgba(255,240,120,.18)!important; border:3px solid rgba(255,255,255,.85)!important; box-shadow:0 0 24px 10px rgba(255,239,116,.55)!important; }
 .st-key-island_map [class*="st-key-castle_hit_"] button:disabled { opacity:0!important; }
-@media(max-width:900px) { .block-container { padding-left:.8rem!important; padding-right:.8rem!important; padding-top:.55rem!important; } .st-key-island_map { height:min(70vh,700px); min-height:500px; } .map-castle { transform:translate(-50%,-50%) scale(.9); } .map-heading {font-size:1.05rem} .st-key-island_map [class*="st-key-castle_hit_"] { min-width:44px; height:22%; } .map-cloud {font-size:2rem} .map-peak { transform:scale(.75)!important; } }
-@media(max-width:600px) { .st-key-island_map { min-height:470px;height:64vh; } .map-castle { transform:translate(-50%,-50%) scale(.74); } .castle-name {font-size:.9rem;padding:.35rem;} }
+@media(max-width:900px) { .block-container { padding-left:.8rem!important; padding-right:.8rem!important; padding-top:.55rem!important; } .st-key-island_map { height:min(70vh,700px); min-height:500px; } .st-key-island_map .map-art {height:min(70vh,700px)!important;} .map-castle { transform:translate(-50%,-50%) scale(.9); } .map-heading {font-size:1.05rem} .st-key-island_map [class*="st-key-castle_hit_"] { min-width:44px; height:22%; } .map-cloud {font-size:2rem} .map-peak { transform:scale(.75)!important; } }
+@media(max-width:600px) { .st-key-island_map { min-height:470px;height:64vh; } .st-key-island_map .map-art {height:64vh!important;} .map-castle { transform:translate(-50%,-50%) scale(.74); } .castle-name {font-size:.9rem;padding:.35rem;} }
 .battle-shell { border-radius:30px; border:2px solid white; background:linear-gradient(145deg,#fff,#f8f5ff); box-shadow:0 12px 28px rgba(49,42,95,.1); padding:1rem; }
 .battle-title { color:#51497a; font-size:1.05rem; font-weight:900; }
 .battle-arena { --sky1:#b9eeff; --sky2:#72d6e9; --ground:#89d27f; position:relative; overflow:hidden; min-height:500px; border-radius:28px; border:5px solid white; box-shadow:inset 0 0 0 2px rgba(255,255,255,.45),0 12px 26px rgba(43,43,93,.15); background:radial-gradient(ellipse at 52% 48%,#fff8b655 0 15%,transparent 45%),linear-gradient(180deg,var(--sky1),var(--sky2) 60%,var(--ground) 60%,#5fb978); padding:1rem; }
