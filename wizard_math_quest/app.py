@@ -175,7 +175,7 @@ div.stButton > button:disabled { color:#aaa8b7; background:#e7e6eb; border-color
 
 /* Rich, original game artwork and large tablet-friendly play areas. */
 .st-key-island_map { --map-height:min(70vh,760px); height:var(--map-height)!important; min-height:var(--map-height)!important; }
-.st-key-island_map .map-art { inset:0; width:100%; height:100%!important; background:url('/app/static/starwilds_map.webp') center/100% 100% no-repeat; }
+.st-key-island_map .map-art { inset:0; width:100%; height:var(--map-height)!important; min-height:var(--map-height)!important; background:url('/app/static/starwilds_map.webp') center/100% 100% no-repeat; }
 .st-key-island_map .map-art > :not(.map-castle) { display:none!important; }
 .map-castle { width:14%; height:24%; transform:translate(-50%,-50%); z-index:4; color:#fff; pointer-events:none; }
 .map-castle-0 { left:15%; top:47%; }.map-castle-1 { left:22%; top:23%; }.map-castle-2 { left:50%; top:60%; }.map-castle-3 { left:73%; top:18%; }.map-castle-4 { left:83%; top:48%; }
@@ -196,7 +196,7 @@ div.stButton > button:disabled { color:#aaa8b7; background:#e7e6eb; border-color
 .battle-heading p { margin:0; color:#f4eaff; font-weight:800; }
 .store-title { padding:.6rem .8rem; margin:.1rem 0 .55rem; border-radius:18px; color:#fff; background:linear-gradient(130deg,#d17c31,#f1ad42); box-shadow:0 4px 0 #b86635; font-size:1.2rem; font-weight:1000; text-align:center; }
 .st-key-battle_arena { --arena-height:min(72vh,800px); position:relative!important; isolation:isolate; height:var(--arena-height)!important; min-height:520px!important; overflow:visible!important; margin:0!important; }
-.st-key-battle_arena .battle-arena { position:absolute; inset:0; width:100%; height:100%; min-height:0; padding:0; border:6px solid #fff; border-radius:30px; background:#362d5b url('/app/static/arena.webp') center/cover no-repeat; box-shadow:0 15px 34px #2f285044,inset 0 0 0 2px #fff8; }
+.st-key-battle_arena .battle-arena { position:absolute; inset:0; width:100%; height:var(--arena-height)!important; min-height:var(--arena-height)!important; padding:0; border:6px solid #fff; border-radius:30px; background:#362d5b url('/app/static/arena.webp') center/cover no-repeat; box-shadow:0 15px 34px #2f285044,inset 0 0 0 2px #fff8; }
 .st-key-battle_arena .battle-arena:before { content:''; inset:0; top:0; left:0; width:auto; height:auto; border-radius:24px; background:linear-gradient(180deg,#10143335 0%,#1b153022 44%,#26132816 100%); opacity:1; font-size:0; }
 .st-key-battle_arena .battle-arena:after { content:'✦  ✧  ✦'; top:15%; right:4%; color:#fff4a3; text-shadow:0 0 14px #ffdb55; animation:star-twinkle 1.7s ease-in-out infinite; }
 .st-key-battle_arena .arena-caption { top:3%; z-index:4; font-size:clamp(.85rem,1.45vw,1.15rem); letter-spacing:.03em; }
