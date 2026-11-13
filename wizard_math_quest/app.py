@@ -437,17 +437,17 @@ def render_battle_scene() -> None:
     effect_html = f"<div class='spell-projectile'>{effect['emoji']}</div><div class='spell-impact'>{effect['emoji']}</div><div class='boss-hurt'>−{S.get('last_damage', 0)}!</div>" if effect and hurt else ""
     backdrop = ["🌻", "🌲", "💎", "☁️", "🌙"][index]
     backdrop_alt = ["🌼", "✨", "🔮", "⚡", "🏰"][index]
-    st.markdown(
-        f"""<div class='battle-arena {arena_class}'>
-        <div class='arena-caption'>{castle['emoji']} {castle['place']} · {castle['subtitle']}</div>
-        <div class='arena-backdrop'><span class='arena-prop one'>{backdrop}</span><span class='arena-prop two'>{backdrop_alt}</span></div>
-        <div class='duel'>
-          <div class='character hero {'attacking' if hurt else ''}'><div class='head-health'><b>{S['player']}</b><div class='health-track'><span class='health-fill' style='width:100%'></span></div></div>{hero_svg(hero_color)}<div class='char-name'>Wizard {S['player']}</div></div>
-          {effect_html}
-          <div class='character boss {'hurt' if hurt else ''}'><div class='head-health'><b>{castle['boss']}</b><div class='health-track'><span class='health-fill' style='width:{enemy_ratio * 100:.1f}%'></span></div></div>{boss_svg(index, hurt)}<div class='char-name'>{castle['boss']}</div></div>
-        </div></div>""",
-        unsafe_allow_html=True,
+    arena_markup = (
+        f"<div class='battle-arena {arena_class}'>"
+        f"<div class='arena-caption'>{castle['emoji']} {castle['place']} · {castle['subtitle']}</div>"
+        f"<div class='arena-backdrop'><span class='arena-prop one'>{backdrop}</span><span class='arena-prop two'>{backdrop_alt}</span></div>"
+        f"<div class='duel'>"
+        f"<div class='character hero {'attacking' if hurt else ''}'><div class='head-health'><b>{S['player']}</b><div class='health-track'><span class='health-fill' style='width:100%'></span></div></div>{hero_svg(hero_color)}<div class='char-name'>Wizard {S['player']}</div></div>"
+        f"{effect_html}"
+        f"<div class='character boss {'hurt' if hurt else ''}'><div class='head-health'><b>{castle['boss']}</b><div class='health-track'><span class='health-fill' style='width:{enemy_ratio * 100:.1f}%'></span></div></div>{boss_svg(index, hurt)}<div class='char-name'>{castle['boss']}</div></div>"
+        f"</div></div>"
     )
+    st.markdown(arena_markup, unsafe_allow_html=True)
     st.caption(castle["scene"])
 
 
