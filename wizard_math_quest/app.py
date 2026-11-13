@@ -496,6 +496,9 @@ def record_completed_adventure() -> None:
 def update_enemy_attacks() -> None:
     if S["screen"] not in ("battle", "spell_challenge"):
         return
+    if S["hero_hp"] <= 0:
+        S["hero_defeat_started_at"] = S.get("hero_defeat_started_at") or time.time()
+        return
     if S["enemy_hp"] <= 0 or S.get("defeat_started_at") or S.get("hero_defeat_started_at"):
         return
     elapsed = time.time() - S.get("enemy_attack_start_at", 0.0)
