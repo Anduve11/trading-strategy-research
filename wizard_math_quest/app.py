@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import base64
 import random
 import time
+from pathlib import Path
 import streamlit as st
 
 
@@ -282,6 +284,18 @@ div.stButton > button:disabled { color:#aaa8b7; background:#e7e6eb; border-color
 }
 </style>
 """
+
+
+def inline_art(filename: str) -> str:
+    image_path = Path(__file__).resolve().parent / "static" / filename
+    encoded = base64.b64encode(image_path.read_bytes()).decode("ascii")
+    return f"data:image/webp;base64,{encoded}"
+
+
+for art_file in ("starwilds_map.webp", "arena.webp", "hero.webp", "maldred.webp"):
+    CSS = CSS.replace(f"/app/static/{art_file}", inline_art(art_file))
+
+
 st.markdown(CSS, unsafe_allow_html=True)
 
 
