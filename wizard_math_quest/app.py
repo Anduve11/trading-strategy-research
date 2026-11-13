@@ -177,6 +177,14 @@ div.stButton > button:disabled { color:#aaa8b7; background:#e7e6eb; border-color
 .challenge-card { border-radius:26px; padding:1.3rem; background:linear-gradient(135deg,#fff,#f2edff); border:2px solid white; box-shadow:0 12px 28px rgba(51,42,99,.11); text-align:center; margin:.6rem 0 1rem; }
 .challenge-math { font-size:3rem; font-weight:1000; color:#30285f; padding:.6rem; }
 .challenge-finish { border-radius:25px; background:linear-gradient(130deg,#fff0b9,#fff,#e4fbe9); padding:1.2rem; text-align:center; font-weight:900; }
+.leaderboard-hero { padding:1.2rem 1.5rem; border-radius:26px; color:#fff; background:linear-gradient(110deg,#30295e,#684cb2 62%,#a575dc); box-shadow:0 10px 25px #3b2b6633; margin:.2rem 0 1rem; text-align:center; }
+.leaderboard-hero h1 { color:#fff!important; margin:.15rem 0; font-size:clamp(1.7rem,4vw,2.5rem); }
+.leaderboard-hero p { color:#f7edff; margin:0; font-weight:800; }
+.leaderboard-summary { border-radius:23px; border:2px solid #fff; padding:.9rem; background:linear-gradient(145deg,#fff,#f1eaff); box-shadow:0 8px 18px #4c39751a; text-align:center; min-height:115px; }
+.leaderboard-summary .summary-value { display:block; font-size:clamp(1.15rem,2.2vw,1.7rem); font-weight:1000; color:#45347c; }
+.leaderboard-summary .summary-label { color:#72648d; font-size:.82rem; font-weight:900; }
+.leaderboard-table-title { margin:1.2rem 0 .45rem; font-size:1.3rem; font-weight:1000; color:#392e6d; }
+.st-key-new_adventure button { min-height:3.5rem!important; border:3px solid white!important; background:linear-gradient(120deg,#ffe45f,#ffad48)!important; box-shadow:0 5px 0 #b9683a!important; font-size:1.05rem!important; }
 .notice { padding:.8rem 1rem; border-radius:18px; background:#fff3c8; border:1px solid #efd77b; color:#56451d; font-weight:900; margin:.5rem 0; }
 @media(max-width:700px) { .battle-arena { min-height:330px; } .duel { left:2%; right:2%; } .character { width:42%; } .sprite { width:100%; } .challenge-math { font-size:2.2rem; } }
 
@@ -209,12 +217,17 @@ div.stButton > button:disabled { color:#aaa8b7; background:#e7e6eb; border-color
 .st-key-battle_arena .battle-arena:after { content:'✦  ✧  ✦'; top:15%; right:4%; color:#fff4a3; text-shadow:0 0 14px #ffdb55; animation:star-twinkle 1.7s ease-in-out infinite; }
 .st-key-battle_arena .arena-caption { top:3%; z-index:4; font-size:clamp(.85rem,1.45vw,1.15rem); letter-spacing:.03em; }
 .st-key-battle_arena .duel { left:2%; right:2%; bottom:5%; height:78%; align-items:flex-end; }
-.st-key-battle_arena .character { width:37%; height:100%; }
+.st-key-battle_arena .character { width:34%; height:100%; }
 .st-key-battle_arena .player-character { margin-right:auto; }
 .st-key-battle_arena .boss { margin-left:auto; }
 .st-key-battle_arena .sprite { display:block; width:100%; height:90%; max-width:none; object-fit:contain; object-position:center bottom; filter:drop-shadow(0 10px 9px #17152a88); }
-.st-key-battle_arena .hero-sprite { background:url('/app/static/hero.webp') center bottom/auto 75% no-repeat; }
-.st-key-battle_arena .boss-sprite { background:url('/app/static/maldred.webp') center bottom/auto 75% no-repeat; }
+.st-key-battle_arena .hero-sprite { background:url('/app/static/hero.webp') center bottom/auto 72% no-repeat; }
+.st-key-battle_arena .boss-sprite { background:url('/app/static/maldred.webp') center bottom/auto 72% no-repeat; transform-origin:center bottom; }
+.st-key-battle_arena .boss-scale-1 { transform:scale(1); }
+.st-key-battle_arena .boss-scale-2 { transform:scale(1.1); }
+.st-key-battle_arena .boss-scale-3 { transform:scale(1.2); }
+.st-key-battle_arena .boss-scale-4 { transform:scale(1.32); }
+.st-key-battle_arena .boss-scale-5 { transform:scale(1.52); }
 .st-key-battle_arena .character.player-character { animation:hero-prowl 4s ease-in-out infinite; }
 .st-key-battle_arena .character.player-character.attacking { animation:hero-lunge .82s cubic-bezier(.2,.8,.3,1) 1; }
 .st-key-battle_arena .character.boss { animation:boss-prowl 4.6s ease-in-out infinite; }
@@ -298,7 +311,7 @@ div.stButton > button:disabled { color:#aaa8b7; background:#e7e6eb; border-color
   .map-level { font-size:.75rem; white-space:nowrap; }
   .st-key-battle_arena { --arena-height:540px; min-height:540px!important; }
   .battle-heading { padding:.6rem .8rem; }
-  .st-key-battle_arena .character { width:38%; }
+  .st-key-battle_arena .character { width:35%; }
   .st-key-battle_arena .duel { left:0; right:0; }
   .st-key-battle_arena [class*="st-key-battle_spell_"] { width:70px!important; }
   .st-key-battle_arena .st-key-battle_spell_0 { left:49%;top:56%; }.st-key-battle_arena .st-key-battle_spell_1 { left:49%;top:68%; }.st-key-battle_arena .st-key-battle_spell_2 { left:49%;top:80%; }.st-key-battle_arena .st-key-battle_spell_3 { left:49%;top:92%; }
@@ -326,7 +339,7 @@ st.markdown(CSS, unsafe_allow_html=True)
 
 def init_state() -> None:
     defaults = {
-        "screen": "home", "player": "Kate", "math_level": 1,
+        "screen": "map", "player": "Kate", "math_level": 1,
         "unlocked_castle": 0, "completed_castles": [], "active_castle": 0,
         "enemy_hp": 0, "hero_hp": 100, "spell_inventory": [], "challenge_spell": None,
         "challenge_questions": [], "challenge_index": 0, "challenge_attempt": 0,
@@ -336,6 +349,10 @@ def init_state() -> None:
         "challenge_feedback": "", "challenge_notice": "", "map_notice": "",
         "new_spell_highlight": None, "last_spell": None, "last_damage": 0,
         "adventure_over": False,
+        "adventure_started_at": 0.0, "adventure_finished_at": 0.0,
+        "run_math_level": 0, "run_player": "", "run_duration_seconds": 0,
+        "run_score": 0, "leaderboard_recorded": False,
+        "leaderboard_entries": [], "latest_run": None,
     }
     for key, value in defaults.items():
         if key not in st.session_state:
@@ -391,14 +408,20 @@ def start_adventure(player: str, level: int) -> None:
         "challenge_feedback": "", "challenge_notice": "", "map_notice": "",
         "new_spell_highlight": None, "last_spell": None, "last_damage": 0,
         "adventure_over": False,
+        "adventure_started_at": 0.0, "adventure_finished_at": 0.0,
+        "run_math_level": int(level), "run_player": player,
+        "run_duration_seconds": 0, "run_score": 0, "leaderboard_recorded": False,
     })
 
 
 def enter_castle(index: int) -> None:
     now = time.time()
+    if not S.get("adventure_started_at"):
+        S["adventure_started_at"] = now
+        S["run_math_level"] = int(S["math_level"])
+        S["run_player"] = S["player"]
     S["active_castle"] = index
     S["enemy_hp"] = CASTLES[index]["hp"]
-    S["hero_hp"] = 100
     S["enemy_attack_start_at"] = now + ATTACK_INTRO_SECONDS
     S["enemy_attack_hits"] = 0
     S["defeat_started_at"] = 0.0
@@ -407,6 +430,42 @@ def enter_castle(index: int) -> None:
     S["new_spell_highlight"] = None
     S["challenge_notice"] = ""
     S["screen"] = "battle"
+
+
+def format_duration(seconds: int) -> str:
+    minutes, remainder = divmod(max(0, int(seconds)), 60)
+    return f"{minutes}m {remainder:02d}s"
+
+
+def record_completed_adventure() -> None:
+    if S.get("leaderboard_recorded"):
+        return
+    finished_at = time.time()
+    started_at = S.get("adventure_started_at") or finished_at
+    duration = max(0, int(finished_at - started_at))
+    level = int(S.get("run_math_level") or S["math_level"])
+    health = max(0, min(100, int(S["hero_hp"])))
+    # Difficulty rewards tackling harder math; remaining hearts and a quick clear
+    # add bonuses. The speed bonus is one point per second under 30 minutes.
+    score = level * 1000 + health * 50 + max(0, 1800 - duration)
+    entry = {
+        "player": S.get("run_player") or S["player"],
+        "level": level,
+        "difficulty": f"Level {level} · {MATH_LEVELS[level]['label']}",
+        "ending_health": health,
+        "duration_seconds": duration,
+        "time": format_duration(duration),
+        "score": score,
+        "finished_at": finished_at,
+    }
+    entries = list(S.get("leaderboard_entries", []))
+    entries.append(entry)
+    S["leaderboard_entries"] = sorted(entries, key=lambda row: (row["score"], row["ending_health"], -row["duration_seconds"]), reverse=True)[:25]
+    S["adventure_finished_at"] = finished_at
+    S["run_duration_seconds"] = duration
+    S["run_score"] = score
+    S["leaderboard_recorded"] = True
+    S["latest_run"] = entry
 
 
 def update_enemy_attacks() -> None:
@@ -475,6 +534,8 @@ def cast_spell(inventory_index: int) -> None:
         else:
             S["adventure_over"] = True
             S["map_notice"] = "🌟 Maldred is defeated! The Starwilds are sparkling again!"
+            S["adventure_finished_at"] = time.time()
+            record_completed_adventure()
         S["defeat_started_at"] = time.time()
         S["screen"] = "battle"
     else:
@@ -571,15 +632,33 @@ def render_home() -> None:
 
 
 def render_map() -> None:
-    st.markdown(f"<div class='map-topbar'><div><h1>🧙‍♀️ Wizard {S['player']}'s Island</h1><p>Tap the glowing castle and follow the golden trail!</p></div><div class='map-level'>{CASTLES[S['unlocked_castle']]['emoji']} Castle {S['unlocked_castle'] + 1} is ready</div></div>", unsafe_allow_html=True)
-    level_col, cleared_col, practice_col = st.columns([1.1, 1.1, 1.8], vertical_alignment="center", gap="small")
+    locked = bool(S.get("adventure_started_at"))
+    player_col, level_col, progress_col = st.columns([1.05, 2, 1.05], vertical_alignment="center", gap="small")
+    with player_col:
+        selected_player = st.selectbox(
+            "Choose your wizard",
+            ["Kate", "Lola"],
+            index=0 if S["player"] == "Kate" else 1,
+            key="map_player_picker",
+            disabled=locked,
+        )
+        S["player"] = selected_player
     with level_col:
-        st.markdown(f"<span class='pill'>📚 Level {S['math_level']} / 10</span>", unsafe_allow_html=True)
-    with cleared_col:
-        st.markdown(f"<span class='pill'>🏰 {len(S['completed_castles'])} / 5 cleared</span>", unsafe_allow_html=True)
-    with practice_col:
-        updated_level = st.select_slider("Practice level", options=list(MATH_LEVELS), value=S["math_level"], key="map_level", format_func=lambda n: str(n))
+        updated_level = st.select_slider(
+            "Choose your math level",
+            options=list(MATH_LEVELS),
+            value=S["math_level"],
+            key="map_level",
+            format_func=str,
+            disabled=locked,
+        )
         S["math_level"] = int(updated_level)
+    with progress_col:
+        st.markdown(f"<span class='pill'>🏰 {len(S['completed_castles'])} / 5 cleared</span>", unsafe_allow_html=True)
+    subtitle = "Choose a wizard and math level, then tap the glowing castle!" if not locked else "Tap the glowing castle and follow the golden trail!"
+    st.markdown(f"<div class='map-topbar'><div><h1>🧙‍♀️ Wizard {S['player']}'s Island</h1><p>{subtitle}</p></div><div class='map-level'>{CASTLES[S['unlocked_castle']]['emoji']} Castle {S['unlocked_castle'] + 1} is ready</div></div>", unsafe_allow_html=True)
+    if locked:
+        st.caption(f"Wizard {S['run_player']} · Math Level {S['run_math_level']} · Hearts carry between castles")
     with st.container(key="island_map"):
         st.markdown(island_map(), unsafe_allow_html=True)
         for index, castle in enumerate(CASTLES):
@@ -591,9 +670,53 @@ def render_map() -> None:
         st.markdown(f"<div class='notice'>{S['map_notice']}</div>", unsafe_allow_html=True)
     if S["adventure_over"]:
         st.markdown("<div class='challenge-finish'><div style='font-size:3rem'>🌟 🧙‍♀️ 🏰 🌟</div><h2>Maldred is defeated!</h2><p>The Starwilds sparkle again thanks to your math magic.</p></div>", unsafe_allow_html=True)
-        if st.button("🔁 Start a new adventure", key="new_adventure", use_container_width=True):
-            S["screen"] = "home"
+        if st.button("📊 View the leaderboard", key="map_leaderboard", use_container_width=True):
+            S["screen"] = "leaderboard"
             st.rerun()
+
+
+def render_leaderboard() -> None:
+    st.markdown(
+        "<div class='leaderboard-hero'><div class='eyebrow'>THE STARWILDS · HALL OF HEROES</div><h1>🏆 Wizard Leaderboard</h1><p>Brave math, healthy hearts, and speedy spell-casting earn the most stars!</p></div>",
+        unsafe_allow_html=True,
+    )
+    latest = S.get("latest_run")
+    if latest:
+        summary_cols = st.columns(4, gap="small")
+        summary_values = [
+            (f"🧙 {latest['player']}", "Wizard"),
+            (latest["difficulty"], "Math difficulty"),
+            (f"💚 {latest['ending_health']} / 100", "Hearts at the finish"),
+            (latest["time"], "Adventure time"),
+        ]
+        for col, (value, label) in zip(summary_cols, summary_values):
+            with col:
+                st.markdown(f"<div class='leaderboard-summary'><span class='summary-value'>{value}</span><span class='summary-label'>{label}</span></div>", unsafe_allow_html=True)
+        st.success(f"🌟 {latest['player']} finished with **{latest['score']:,} points**!")
+    else:
+        st.info("Finish all five castles to add your first score to the Hall of Heroes.")
+
+    st.markdown("<div class='leaderboard-table-title'>✨ Top Starwilds Champions</div>", unsafe_allow_html=True)
+    entries = S.get("leaderboard_entries", [])
+    if entries:
+        rows = [
+            {
+                "Rank": rank,
+                "Name": entry["player"],
+                "Difficulty": entry["difficulty"],
+                "Ending health": f"{entry['ending_health']} / 100",
+                "Time": entry["time"],
+                "Score": entry["score"],
+            }
+            for rank, entry in enumerate(entries[:10], start=1)
+        ]
+        st.dataframe(rows, use_container_width=True, hide_index=True, height=min(430, 48 + 36 * len(rows)))
+    else:
+        st.markdown("<div class='notice'>Your first completed adventure will appear here!</div>", unsafe_allow_html=True)
+    st.caption("Score = math level × 1,000 + ending hearts × 50 + speed bonus (1 point for each second under 30 minutes).")
+    if st.button("🔁 Start a new adventure", key="new_adventure", use_container_width=True):
+        start_adventure(S["player"], int(S["math_level"]))
+        st.rerun()
 
 
 @st.fragment(run_every="1s")
@@ -625,7 +748,7 @@ def render_battle_scene() -> None:
         f"<div class='duel'>"
         f"<div class='character player-character {'attacking' if hurt else ''}'><div class='head-health'><b>Wizard {S['player']} · {S['hero_hp']} HP</b><div class='health-track'><span class='health-fill' style='width:{S['hero_hp']}%'></span></div></div><div class='sprite hero-sprite' role='img' aria-label='Wizard {S['player']}'></div><div class='char-name'>Wizard {S['player']}</div></div>"
         f"{effect_html}"
-        f"<div class='character boss {'hurt' if hurt else ''} {'defeated' if defeated else ''}'><div class='head-health'><b>{castle['boss']} · {S['enemy_hp']} HP</b><div class='health-track'><span class='health-fill' style='width:{enemy_ratio * 100:.1f}%'></span></div></div><div class='sprite boss-sprite' role='img' aria-label='{castle['boss']}'></div><div class='char-name'>{castle['boss']}</div></div>"
+        f"<div class='character boss {'hurt' if hurt else ''} {'defeated' if defeated else ''}'><div class='head-health'><b>{castle['boss']} · {S['enemy_hp']} HP</b><div class='health-track'><span class='health-fill' style='width:{enemy_ratio * 100:.1f}%'></span></div></div><div class='sprite boss-sprite boss-scale-{index + 1}' role='img' aria-label='{castle['boss']}'></div><div class='char-name'>{castle['boss']}</div></div>"
         f"</div></div>"
     )
     with st.container(key="battle_arena"):
@@ -644,9 +767,9 @@ def render_battle_scene() -> None:
                     cast_spell(inventory_index)
                     st.rerun()
         elif defeat_elapsed >= DEFEAT_ANIMATION_SECONDS:
-            button_label = "🏝️ Keep going to the island" if not S["adventure_over"] else "🌟 Return to the island"
+            button_label = "🏝️ Keep going to the island" if not S["adventure_over"] else "📊 See the leaderboard"
             if st.button(button_label, key="defeat_continue", use_container_width=True):
-                S["screen"] = "map"
+                S["screen"] = "map" if not S["adventure_over"] else "leaderboard"
                 S["defeat_started_at"] = 0.0
                 st.rerun()
 
@@ -733,15 +856,19 @@ def render_spell_challenge() -> None:
 
 def render_app() -> None:
     if S["screen"] == "home":
-        render_home()
-    elif S["screen"] == "map":
+        # The island map is now the opening screen; retain compatibility with
+        # sessions that were sitting on the older start page during deployment.
+        S["screen"] = "map"
+    if S["screen"] == "map":
         render_map()
     elif S["screen"] == "battle":
         render_battle()
     elif S["screen"] == "spell_challenge":
         render_spell_challenge()
+    elif S["screen"] == "leaderboard":
+        render_leaderboard()
     else:
-        S["screen"] = "home"
+        S["screen"] = "map"
         st.rerun()
 
 
