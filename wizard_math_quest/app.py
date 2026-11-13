@@ -109,12 +109,16 @@ div.stButton > button:disabled { color:#aaa8b7; background:#e7e6eb; border-color
 .castle-flag { position:absolute; right:12px; top:-20px; width:4px; height:30px; background:#55466f; }.castle-flag:after { content:''; position:absolute; top:0; left:3px; width:18px; height:11px; background:#ffd64e; clip-path:polygon(0 0,100% 50%,0 100%); }
 .castle-number { position:absolute; left:55px; top:-6px; z-index:2; width:40px; height:40px; border:4px solid #5c5078; border-radius:50%; background:#fff; color:#342d61; font-size:1.2rem; line-height:32px; font-weight:1000; box-shadow:0 3px 0 rgba(40,38,74,.14); }
 .castle-name { position:absolute; left:0; right:0; bottom:0; padding:.22rem .3rem; border:2px solid rgba(83,70,125,.2); border-radius:999px; background:rgba(255,255,255,.97); font-size:.72rem; line-height:1.1; font-weight:1000; color:#304366; box-shadow:0 3px 5px #3d795e55; }
+.castle-start-hint { position:absolute; left:50%; top:calc(50% - 61px); z-index:8; transform:translateX(-50%); padding:.28rem .62rem; border:3px solid #fff; border-radius:999px; background:linear-gradient(135deg,#fff15e,#ffad3d); color:#39275f; box-shadow:0 4px 0 #8e5c43,0 0 20px 8px #ffe554aa; font-size:clamp(.63rem,1vw,.88rem); font-weight:1000; line-height:1.1; white-space:nowrap; animation:hint-bob .8s ease-in-out infinite alternate; }
 .map-castle.locked { filter:grayscale(.8) saturate(.5); opacity:.72; }
 .map-castle.open { filter:drop-shadow(0 0 16px #fff38b); animation:castle-glow 1.6s ease-in-out infinite alternate; }
+.map-castle.open .castle-number { width:clamp(46px,4.8vw,58px); height:clamp(46px,4.8vw,58px); line-height:clamp(34px,3.8vw,46px); font-size:1.55rem; border:5px solid #fff; box-shadow:0 0 0 5px #ffda46,0 0 0 10px #fff8,0 0 32px 16px #ffca47cc; animation:start-number-pop .8s ease-in-out infinite alternate; }
 .map-path {position:absolute;z-index:3;width:22%;border-top:8px dotted #fff0a0;filter:drop-shadow(0 3px 1px #5e9a6477);transform-origin:left center;}
 .map-path.a {left:14%;top:53%;transform:rotate(-38deg)}.map-path.b {left:33%;top:49%;transform:rotate(39deg)}.map-path.c {left:52%;top:51%;transform:rotate(-39deg)}.map-path.d {left:71%;top:46%;transform:rotate(34deg)}
 .map-castle.done .castle-flag:after { background:#74d58d; }
 @keyframes castle-glow { to { filter:drop-shadow(0 0 22px #fff394); transform:translate(-50%,-52%) scale(1.035); } }
+@keyframes start-number-pop { to { transform:translate(-50%,-50%) scale(1.17); } }
+@keyframes hint-bob { to { transform:translate(-50%,-5px); } }
 .st-key-island_map [class*="st-key-castle_hit_"] { position:absolute!important; z-index:3; width:14%; height:24%; min-width:54px; }
 .st-key-island_map .st-key-castle_hit_0 { left:5%; top:51%; }
 .st-key-island_map .st-key-castle_hit_1 { left:24%; top:26%; }
@@ -211,6 +215,11 @@ div.stButton > button:disabled { color:#aaa8b7; background:#e7e6eb; border-color
 .battle-heading h1 { color:#fff!important; margin:.15rem 0; font-size:clamp(1.25rem,2.5vw,1.9rem); }
 .battle-heading p { margin:0; color:#f4eaff; font-weight:800; }
 .store-title { padding:.6rem .8rem; margin:.1rem 0 .55rem; border-radius:18px; color:#fff; background:linear-gradient(130deg,#d17c31,#f1ad42); box-shadow:0 4px 0 #b86635; font-size:1.2rem; font-weight:1000; text-align:center; }
+.store-caption { margin:.1rem 0 .55rem; color:#524778; font-size:.83rem; font-weight:900; line-height:1.35; }
+.new-spell-note { margin:.15rem 0 .65rem; padding:.75rem .6rem; border:3px solid #fff; border-radius:18px; color:#49336d; background:linear-gradient(135deg,#fff7a8,#ffc94f); box-shadow:0 0 0 4px #ffcb48aa,0 5px 0 #996742; text-align:center; font-size:.92rem; font-weight:1000; line-height:1.25; animation:new-spell-glow .9s ease-in-out infinite alternate; }
+.battle-new-spell-banner { position:absolute; z-index:12; top:13%; left:50%; transform:translateX(-50%); width:min(90%,470px); padding:.65rem 1rem; border:4px solid white; border-radius:22px; color:#49336d; background:linear-gradient(135deg,#fff9b8,#ffca4f); box-shadow:0 7px 0 #946743,0 0 0 5px #ffdf57aa,0 0 32px 12px #ffe86f99; text-align:center; line-height:1.2; animation:new-spell-glow .9s ease-in-out infinite alternate; }
+.battle-new-spell-banner strong { display:block; color:#633996; font-size:clamp(1rem,1.8vw,1.3rem); }
+.battle-new-spell-banner span { display:block; margin-top:.15rem; font-size:clamp(.78rem,1.2vw,.98rem); font-weight:1000; }
 .st-key-battle_arena { --arena-height:min(78vh,900px); position:relative!important; isolation:isolate; height:var(--arena-height)!important; min-height:560px!important; overflow:visible!important; margin:0!important; }
 .st-key-battle_arena .battle-arena { position:absolute; inset:0; width:100%; height:var(--arena-height)!important; min-height:var(--arena-height)!important; padding:0; border:6px solid #fff; border-radius:30px; background:#362d5b url('/app/static/arena.webp') center/cover no-repeat; box-shadow:0 15px 34px #2f285044,inset 0 0 0 2px #fff8; }
 .st-key-battle_arena .battle-arena:before { content:''; inset:0; top:0; left:0; width:auto; height:auto; border-radius:24px; background:linear-gradient(180deg,#10143335 0%,#1b153022 44%,#26132816 100%); opacity:1; font-size:0; }
@@ -322,8 +331,10 @@ div.stButton > button:disabled { color:#aaa8b7; background:#e7e6eb; border-color
   .st-key-battle_arena { --arena-height:min(74vh,780px); min-height:500px!important; }
   .store-title { padding:.45rem .4rem; font-size:1rem; }
   .store-caption { font-size:.74rem; }
-  .spell-pick { padding:.42rem; }
+  .new-spell-note { font-size:.8rem; padding:.58rem .35rem; }
+  .battle-new-spell-banner { top:11%; width:94%; padding:.55rem .6rem; }
   .st-key-battle_arena [class*="st-key-battle_spell_"] button { font-size:.7rem!important; }
+  .st-key-battle_arena [class*="st-key-battle_spell_"] button { min-height:80px!important; }
 }
 @media(max-width:600px) {
   .st-key-island_map { --map-height:min(64vh,590px); }
@@ -619,8 +630,12 @@ def boss_svg(index: int, hurt: bool = False) -> str:
 
 
 def castle_marker(num: int, status: str, title: str) -> str:
+    hint = ""
+    if status == "open":
+        hint_text = "👇 TAP CASTLE 1!" if num == 1 else "👇 TAP TO ENTER!"
+        hint = f"<div class='castle-start-hint'>{hint_text}</div>"
     return f"""<div class='map-castle map-castle-{num - 1} {status}'>
-      <div class='castle-number'>{num}</div><div class='castle-name'>{title}</div></div>"""
+      {hint}<div class='castle-number'>{num}</div><div class='castle-name'>{title}</div></div>"""
 
 
 def island_map() -> str:
@@ -676,7 +691,7 @@ def render_map() -> None:
         S["player"] = st.session_state["map_player_picker"]
     if "map_level" in st.session_state:
         S["math_level"] = int(st.session_state["map_level"])
-    subtitle = "Choose a wizard and math level, then tap the glowing castle!" if not locked else "Tap the glowing castle and follow the golden trail!"
+    subtitle = "Choose a wizard and math level, then tap the glowing number 1 on the castle to start!" if not locked else f"Tap glowing Castle {S['unlocked_castle'] + 1} to start your next battle!"
     st.markdown(f"<div class='map-topbar'><div><h1>🧙‍♀️ Wizard {S['player']}'s Island</h1><p>{subtitle}</p></div><div class='map-level'>{CASTLES[S['unlocked_castle']]['emoji']} Castle {S['unlocked_castle'] + 1} is ready</div></div>", unsafe_allow_html=True)
     player_col, level_col, progress_col = st.columns([1.05, 2, 1.05], vertical_alignment="center", gap="small")
     with player_col:
@@ -779,6 +794,13 @@ def render_battle_scene() -> None:
     hurt = S["enemy_hp"] < castle["hp"]
     effect = SPELLS.get(S.get("last_spell") or "")
     effect_html = f"<div class='spell-projectile'>{effect['emoji']}</div><div class='spell-impact'>{effect['emoji']}</div><div class='boss-hurt'>−{S.get('last_damage', 0)}!</div>" if effect and hurt else ""
+    highlighted_id = S.get("new_spell_highlight")
+    highlighted_spell = SPELLS.get(highlighted_id) if highlighted_id in S["spell_inventory"] else None
+    new_spell_html = (
+        f"<div class='battle-new-spell-banner'><strong>✨ NEW SPELL: {highlighted_spell['name']}! ✨</strong>"
+        f"<span>Tap the glowing card beside your wizard to cast it! 👇</span></div>"
+        if highlighted_spell else ""
+    )
     warning_html = ""
     if not defeated and now < S.get("enemy_attack_start_at", 0):
         warning_html = f"<div class='battle-warning'>⚠️ Hurry! Answer math questions!<span>{castle['boss']} is starting to attack us!</span></div>"
@@ -793,7 +815,7 @@ def render_battle_scene() -> None:
     arena_markup = (
         f"<div class='battle-arena'>"
         f"<div class='arena-caption'>{castle['emoji']} {castle['place']} · {castle['subtitle']}</div>"
-        f"{warning_html}{attack_html}{winner_html}{gameover_html}"
+        f"{new_spell_html}{warning_html}{attack_html}{winner_html}{gameover_html}"
         f"<div class='duel'>"
         f"<div class='character player-character {'attacking' if hurt and not hero_defeated else ''} {'defeated' if hero_defeated else ''}' style='animation-delay:-{min(hero_defeat_elapsed, DEFEAT_ANIMATION_SECONDS):.2f}s'><div class='head-health'><b>Wizard {S['player']} · {S['hero_hp']} HP</b><div class='health-track'><span class='health-fill' style='width:{S['hero_hp']}%'></span></div></div><div class='sprite hero-sprite' role='img' aria-label='Wizard {S['player']}'></div><div class='char-name'>Wizard {S['player']}</div></div>"
         f"{effect_html}"
@@ -809,9 +831,9 @@ def render_battle_scene() -> None:
                 position_x = 26 + (inventory_index // 4) * 12
                 position_y = 76 - (inventory_index % 4) * 11
                 if is_new:
-                    st.markdown(f"<style>.st-key-battle_arena .st-key-battle_spell_{inventory_index} button{{border:4px solid #fff!important;background:linear-gradient(145deg,#fff9ad,#ffbe42)!important;box-shadow:0 0 0 5px #ffe24c99,0 0 28px 12px #ffe24ccc!important;animation:new-spell-glow .9s ease-in-out infinite alternate}}</style>", unsafe_allow_html=True)
+                    st.markdown(f"<style>.st-key-battle_arena .st-key-battle_spell_{inventory_index}{{width:clamp(105px,15%,150px)!important}}.st-key-battle_arena .st-key-battle_spell_{inventory_index} button{{min-height:104px!important;border:5px solid #fff!important;background:linear-gradient(145deg,#fff9ad,#ffbe42)!important;box-shadow:0 0 0 6px #ffe24ccc,0 0 34px 15px #ffe24ccc!important;animation:new-spell-glow .9s ease-in-out infinite alternate;font-size:clamp(.78rem,1.2vw,1rem)!important;font-weight:1000!important;line-height:1.08!important;white-space:normal!important}}</style>", unsafe_allow_html=True)
                 st.markdown(f"<style>.st-key-battle_arena .st-key-battle_spell_{inventory_index}{{left:{position_x}%;top:{position_y}%}}</style>", unsafe_allow_html=True)
-                label = f"🌟 READY!\n{spell['emoji']} {spell['name']}\n{spell['damage']} damage" if is_new else f"{spell['emoji']}\n{spell['name']}\n{spell['damage']} dmg"
+                label = f"🌟 NEW! TAP TO CAST\n{spell['emoji']} {spell['name']}\n{spell['damage']} damage" if is_new else f"{spell['emoji']}\n{spell['name']}\n{spell['damage']} dmg"
                 if st.button(label, key=f"battle_spell_{inventory_index}", help=f"Cast {spell['name']} for {spell['damage']} damage", use_container_width=True):
                     cast_spell(inventory_index)
                     st.rerun()
@@ -829,13 +851,35 @@ def render_battle_scene() -> None:
 
 def render_spell_choices() -> None:
     st.markdown("<div class='store-title'>🛍️ SPELL STORE</div>", unsafe_allow_html=True)
-    st.markdown("<div class='store-caption'>Choose a spell and solve its questions to charge it.</div>", unsafe_allow_html=True)
+    st.markdown("<div class='store-caption'>Tap one whole spell card. Answer its math questions to get it!</div>", unsafe_allow_html=True)
     for spell_id, spell in SPELLS.items():
         st.markdown(
-            f"<div class='spell-pick' style='border-left:6px solid {spell['color']}'><div class='spell-title'>{spell['emoji']} {spell['name']}</div><div class='spell-detail'>{spell['description']}</div><span class='spell-chip'>{spell['questions']} correct answers · {spell['damage']} damage</span></div>",
+            f"""<style>
+            .st-key-get_spell_{spell_id} {{ margin:.45rem 0 .7rem!important; }}
+            .st-key-get_spell_{spell_id} button {{
+              display:flex!important; justify-content:flex-start!important; align-items:center!important;
+              width:100%!important; min-height:142px!important; height:auto!important;
+              padding:.78rem .72rem!important; border:2px solid #fff!important;
+              border-left:9px solid {spell['color']}!important; border-radius:19px!important;
+              color:#382e67!important; background:linear-gradient(140deg,#fffef8,#fff2ca)!important;
+              box-shadow:0 5px 0 #56417a33,0 0 0 1px #e9dfc5!important;
+              font-size:.84rem!important; font-weight:900!important; line-height:1.23!important;
+              text-align:left!important; white-space:normal!important; overflow:visible!important;
+            }}
+            .st-key-get_spell_{spell_id} button [data-testid="stMarkdownContainer"] {{ width:100%!important; text-align:left!important; }}
+            .st-key-get_spell_{spell_id} button p {{ margin:.18rem 0!important; text-align:left!important; }}
+            .st-key-get_spell_{spell_id} button:hover {{ transform:translateY(-3px) scale(1.015)!important; border-color:#fff!important; box-shadow:0 8px 0 #56417a33,0 0 0 5px {spell['color']}88,0 0 22px {spell['color']}99!important; }}
+            @media(max-width:900px) {{ .st-key-get_spell_{spell_id} button {{ min-height:126px!important; padding:.62rem .52rem!important; font-size:.78rem!important; }} }}
+            </style>""",
             unsafe_allow_html=True,
         )
-        if st.button(f"Get · {spell['questions']} answers", key=f"get_spell_{spell_id}", use_container_width=True):
+        label = (
+            f"**{spell['emoji']} {spell['name']}**  \n"
+            f"{spell['description']}  \n"
+            f"**🧠 {spell['questions']} correct answers · 💥 {spell['damage']} damage**  \n"
+            "**👇 TAP THIS CARD TO GET THE SPELL**"
+        )
+        if st.button(label, key=f"get_spell_{spell_id}", use_container_width=True):
             begin_spell_challenge(spell_id)
             st.rerun()
 
@@ -845,7 +889,7 @@ def render_battle() -> None:
     is_defeated = S["enemy_hp"] <= 0 and bool(S.get("defeat_started_at"))
     hero_defeated = S["hero_hp"] <= 0 and bool(S.get("hero_defeat_started_at"))
     title = f"{castle['boss']} is guarding {castle['subtitle']}!" if not is_defeated else f"{castle['boss']} has been defeated!"
-    subtitle = "Earn a spell in the Store, then tap it beside your wizard to cast." if not is_defeated else "Watch the shadow wizard vanish, then head back to the island!"
+    subtitle = "Tap a spell card in the Store to get it, then tap your glowing spell beside the wizard to cast!" if not is_defeated else "Watch the shadow wizard vanish, then head back to the island!"
     st.markdown(f"<div class='battle-heading'><div class='eyebrow'>WIZARD DUEL · CASTLE {S['active_castle'] + 1}</div><h1>{title}</h1><p>{subtitle}</p></div>", unsafe_allow_html=True)
     left, right = st.columns([.72, 2.85], gap="medium")
     with left:
@@ -854,6 +898,13 @@ def render_battle() -> None:
         elif is_defeated:
             st.markdown("<div class='store-title'>🏆 VICTORY!</div><div class='notice'>Great spell-casting! Your next castle is waiting on the island.</div>", unsafe_allow_html=True)
         else:
+            highlighted_id = S.get("new_spell_highlight")
+            if highlighted_id in S["spell_inventory"]:
+                spell = SPELLS[highlighted_id]
+                st.markdown(
+                    f"<div class='new-spell-note'>✨ NEW SPELL! ✨<br>{spell['emoji']} {spell['name']}<br>Tap its glowing card beside your wizard to cast! 👇</div>",
+                    unsafe_allow_html=True,
+                )
             render_spell_choices()
     with right:
         render_battle_scene()
