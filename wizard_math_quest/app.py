@@ -633,6 +633,12 @@ def render_home() -> None:
 
 def render_map() -> None:
     locked = bool(S.get("adventure_started_at"))
+    if "map_player_picker" in st.session_state:
+        S["player"] = st.session_state["map_player_picker"]
+    if "map_level" in st.session_state:
+        S["math_level"] = int(st.session_state["map_level"])
+    subtitle = "Choose a wizard and math level, then tap the glowing castle!" if not locked else "Tap the glowing castle and follow the golden trail!"
+    st.markdown(f"<div class='map-topbar'><div><h1>🧙‍♀️ Wizard {S['player']}'s Island</h1><p>{subtitle}</p></div><div class='map-level'>{CASTLES[S['unlocked_castle']]['emoji']} Castle {S['unlocked_castle'] + 1} is ready</div></div>", unsafe_allow_html=True)
     player_col, level_col, progress_col = st.columns([1.05, 2, 1.05], vertical_alignment="center", gap="small")
     with player_col:
         selected_player = st.selectbox(
@@ -655,8 +661,6 @@ def render_map() -> None:
         S["math_level"] = int(updated_level)
     with progress_col:
         st.markdown(f"<span class='pill'>🏰 {len(S['completed_castles'])} / 5 cleared</span>", unsafe_allow_html=True)
-    subtitle = "Choose a wizard and math level, then tap the glowing castle!" if not locked else "Tap the glowing castle and follow the golden trail!"
-    st.markdown(f"<div class='map-topbar'><div><h1>🧙‍♀️ Wizard {S['player']}'s Island</h1><p>{subtitle}</p></div><div class='map-level'>{CASTLES[S['unlocked_castle']]['emoji']} Castle {S['unlocked_castle'] + 1} is ready</div></div>", unsafe_allow_html=True)
     if locked:
         st.caption(f"Wizard {S['run_player']} · Math Level {S['run_math_level']} · Hearts carry between castles")
     with st.container(key="island_map"):
