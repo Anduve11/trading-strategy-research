@@ -18,16 +18,16 @@ st.set_page_config(
 
 
 MATH_LEVELS = {
-    1: {"label": "Tiny sums", "max": 5, "kind": "add", "summary": "Addition with numbers 0–5"},
-    2: {"label": "Little leaps", "max": 10, "kind": "add", "summary": "Addition with numbers 0–10"},
-    3: {"label": "Meadow sums", "max": 15, "kind": "add", "summary": "Addition with numbers 0–15"},
-    4: {"label": "Big bridges", "max": 20, "kind": "add", "summary": "Addition with numbers 0–20"},
-    5: {"label": "First takeaways", "max": 20, "kind": "mixed", "summary": "Addition and subtraction with numbers 0–20"},
-    6: {"label": "Silver sums", "max": 25, "kind": "mixed", "summary": "Addition and subtraction with numbers 0–25"},
-    7: {"label": "Forest numbers", "max": 30, "kind": "mixed", "summary": "Addition and subtraction with numbers 0–30"},
-    8: {"label": "Crystal challenge", "max": 40, "kind": "mixed", "summary": "Addition and subtraction with numbers 0–40"},
-    9: {"label": "Wizard's workshop", "max": 50, "kind": "mixed", "summary": "Addition and subtraction with numbers 0–50"},
-    10: {"label": "Maldred's challenge", "max": 50, "kind": "subtract", "summary": "Subtraction with numbers 0–50"},
+    1: {"label": "Tiny sums", "max": 5, "kind": "add", "summary": "Addition · each number is picked from 0–5 (sum up to 10)"},
+    2: {"label": "Little leaps", "max": 10, "kind": "add", "summary": "Addition · each number is picked from 0–10 (sum up to 20)"},
+    3: {"label": "Meadow sums", "max": 15, "kind": "add", "summary": "Addition · each number is picked from 0–15 (sum up to 30)"},
+    4: {"label": "Big bridges", "max": 20, "kind": "add", "summary": "Addition · each number is picked from 0–20 (sum up to 40)"},
+    5: {"label": "First takeaways", "max": 20, "kind": "mixed", "summary": "Addition or subtraction · each number is picked from 0–20"},
+    6: {"label": "Silver sums", "max": 25, "kind": "mixed", "summary": "Addition or subtraction · each number is picked from 0–25"},
+    7: {"label": "Forest numbers", "max": 30, "kind": "mixed", "summary": "Addition or subtraction · each number is picked from 0–30"},
+    8: {"label": "Crystal challenge", "max": 40, "kind": "mixed", "summary": "Addition or subtraction · each number is picked from 0–40"},
+    9: {"label": "Wizard's workshop", "max": 50, "kind": "mixed", "summary": "Addition or subtraction · each number is picked from 0–50"},
+    10: {"label": "Maldred's challenge", "max": 50, "kind": "subtract", "summary": "Subtraction · each number is picked from 0–50 (no negative answers)"},
 }
 
 
@@ -408,16 +408,24 @@ def make_problem(level: int) -> dict:
     subtract = cfg["kind"] == "subtract" or (cfg["kind"] == "mixed" and random.random() < .45)
     if subtract:
         first = random.randint(0, maximum)
-        second = random.randint(0, first)
+        second = random.randint(0, maximum)
+        if second > first:
+            first, second = second, first
         answer, op = first - second, "−"
+        answer_max = maximum
     else:
         first = random.randint(0, maximum)
-        second = random.randint(0, maximum - first)
+        second = random.randint(0, maximum)
         answer, op = first + second, "+"
+        answer_max = maximum * 2
     expression = f"{first} {op} {second}"
     hint = f"Start at {first} and count {'back' if subtract else 'forward'} {second} {('step' if second == 1 else 'steps')}"
     explanation = f"{expression} = {answer}. {hint} to reach {answer}."
-    return {"expression": expression, "answer": answer, "choices": make_choices(answer, maximum), "hint": hint + ".", "explanation": explanation}
+    return {"expression": expression, "answer": answer, "choices": make_choices(answer, answer_max), "hint": hint + ".", "explanation": explanation}
+
+
+def math_level_note(level: int) -> str:
+    return MATH_LEVELS[level]["summary"]
 
 
 def start_adventure(player: str, level: int) -> None:
@@ -653,7 +661,7 @@ def render_home() -> None:
         st.markdown("### Pick a starting math level")
         level = st.select_slider("Math level", options=list(MATH_LEVELS), value=1, format_func=lambda n: str(n), key="home_level")
         cfg = MATH_LEVELS[int(level)]
-        st.markdown(f"<div class='home-card' style='border-top:6px solid #f0bd48'><div style='font-size:2.5rem'>📚 ✨</div><b style='font-size:1.2rem'>Level {level}: {cfg['label']}</b><p>{cfg['summary']}</p></div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='home-card' style='border-top:6px solid #f0bd48'><div style='font-size:2.5rem'>📚 ✨</div><b style='font-size:1.2rem'>Level {level}: {cfg['label']}</b><p>{math_level_note(int(level))}</p></div>", unsafe_allow_html=True)
         st.caption("You can change the practice level from the island map at any time.")
     st.markdown("### How to save the island")
     st.info("Click a castle to meet its bad wizard. Pick one of four spells, solve its math challenge, then click your glowing spell card to cast it. Stronger castles have more health!")
@@ -690,6 +698,7 @@ def render_map() -> None:
             disabled=locked,
         )
         S["math_level"] = int(updated_level)
+        st.caption(f"Level {updated_level} · {math_level_note(int(updated_level))}")
     with progress_col:
         st.markdown(f"<span class='pill'>🏰 {len(S['completed_castles'])} / 5 cleared</span>", unsafe_allow_html=True)
     if locked:
