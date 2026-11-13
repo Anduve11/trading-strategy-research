@@ -140,6 +140,7 @@ div.stButton > button:disabled { color:#aaa8b7; background:#e7e6eb; border-color
 .character.player-character.attacking { animation:hero-lunge .82s cubic-bezier(.2,.8,.3,1) 1; }
 .character.boss { animation:boss-bob 2.8s ease-in-out infinite; }
 .character.boss.hurt { animation:enemy-flinch .58s ease-in-out 1,boss-bob 2.8s ease-in-out infinite; filter:saturate(.68); }
+.character.boss.hurt .sprite {animation:sprite-flinch .58s ease-in-out 1;filter:drop-shadow(0 0 15px #ffd064) saturate(.65);}
 .sprite { width:min(100%,205px); height:78%; overflow:visible; filter:drop-shadow(0 9px 7px rgba(32,31,67,.2)); }
 .char-name { background:rgba(255,255,255,.88); padding:.18rem .55rem; border-radius:999px; font-size:.86rem; color:#322c56; font-weight:900; margin-top:.1rem; }
 .head-health { position:absolute; top:0; width:90%; text-align:center; z-index:5; }
@@ -148,17 +149,18 @@ div.stButton > button:disabled { color:#aaa8b7; background:#e7e6eb; border-color
 .health-fill { display:block; height:100%; border-radius:99px; background:linear-gradient(90deg,#68dd75,#a9ef6b); transition:width .35s ease; }
 .boss .health-fill { background:linear-gradient(90deg,#ff727a,#f7be54); }
 .spell-projectile {position:absolute;left:27%;top:51%;z-index:4;font-size:2.7rem;filter:drop-shadow(0 0 16px #fff5a7);animation:projectile .65s cubic-bezier(.2,.85,.25,1) 1 forwards;}
-.spell-impact { position:absolute; left:76%; top:42%; transform:translate(-50%,-50%); z-index:4; font-size:clamp(3rem,7vw,5.2rem); filter:drop-shadow(0 0 18px #fff5a7); animation:impact .85s ease-out 1; }
-.boss-hurt { position:absolute; top:18%; right:6%; z-index:5; color:#fff4e8; font-size:1.5rem; font-weight:1000; text-shadow:0 3px 4px #5c315b; animation:damage-pop .85s ease-out 1; }
+.spell-impact { position:absolute; left:76%; top:42%; transform:translate(-50%,-50%); z-index:4; font-size:clamp(3rem,7vw,5.2rem); filter:drop-shadow(0 0 18px #fff5a7); animation:impact .85s ease-out 1 forwards; }
+.boss-hurt { position:absolute; top:18%; right:6%; z-index:5; color:#fff4e8; font-size:1.5rem; font-weight:1000; text-shadow:0 3px 4px #5c315b; animation:damage-pop .85s ease-out 1 forwards; }
 .arena-caption { position:absolute; z-index:1; left:0; right:0; top:5%; color:white; text-align:center; font-weight:900; text-shadow:0 2px 5px #474075; }
 @keyframes hero-bob { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-8px); } }
 @keyframes hero-lunge {0%{transform:translateX(0) translateY(0)}35%{transform:translateX(48%) translateY(-36px) rotate(9deg)}70%{transform:translateX(34%) translateY(-12px) rotate(3deg)}100%{transform:translateX(0) translateY(0)}}
-@keyframes projectile {0%{opacity:0;transform:translate(0,0) scale(.5) rotate(0)}20%{opacity:1}100%{opacity:.2;transform:translate(420%, -35%) scale(1.7) rotate(420deg)}}
+@keyframes sprite-flinch {0%,100%{transform:translateX(0) rotate(0)}20%{transform:translateX(-13px) rotate(-9deg)}55%{transform:translateX(12px) rotate(7deg)}80%{transform:translateX(-5px) rotate(-3deg)}}
+@keyframes projectile {0%{opacity:0;transform:translate(0,0) scale(.5) rotate(0)}20%{opacity:1}80%{opacity:1}100%{opacity:0;transform:translate(420%, -35%) scale(1.7) rotate(420deg)}}
 @keyframes prop-float {0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
 @keyframes boss-bob { 0%,100% { transform:translateY(0) rotate(0); } 50% { transform:translateY(-5px) rotate(1deg); } }
 @keyframes enemy-flinch { 0%,100% { transform:translateX(0) rotate(0); } 25% { transform:translateX(-11px) rotate(-7deg); } 60% { transform:translateX(9px) rotate(6deg); } }
-@keyframes impact { from { opacity:.2; transform:translate(-50%,-50%) scale(.35) rotate(-30deg); } to { opacity:1; transform:translate(-50%,-50%) scale(1.2) rotate(18deg); } }
-@keyframes damage-pop { from { opacity:0; transform:translateY(18px) scale(.7); } to { opacity:1; transform:translateY(-10px) scale(1.1); } }
+@keyframes impact { 0% { opacity:.2; transform:translate(-50%,-50%) scale(.35) rotate(-30deg); } 35% {opacity:1;transform:translate(-50%,-50%) scale(1.2) rotate(18deg)} 100% {opacity:0;transform:translate(-50%,-50%) scale(1.5) rotate(35deg)} }
+@keyframes damage-pop { 0% { opacity:0; transform:translateY(18px) scale(.7); } 35% {opacity:1;transform:translateY(-10px) scale(1.1)} 100% {opacity:0;transform:translateY(-25px) scale(1.15)} }
 .spell-pick { min-height:94px; border-radius:19px; padding:.75rem; border:1px solid #e6dff2; background:linear-gradient(140deg,#fff,#f5f1ff); margin:.25rem 0 .25rem; }
 .spell-pick .spell-title { font-size:1rem; font-weight:1000; color:#352e64; }
 .spell-pick .spell-detail { font-size:.84rem; color:#6a6480; line-height:1.3; }
@@ -283,6 +285,7 @@ def cast_spell(inventory_index: int) -> None:
     spell_id = S["spell_inventory"].pop(inventory_index)
     spell = SPELLS[spell_id]
     S["new_spell_highlight"] = None
+    S["challenge_notice"] = ""
     S["last_spell"] = spell_id
     S["last_damage"] = min(spell["damage"], S["enemy_hp"])
     S["enemy_hp"] = max(0, S["enemy_hp"] - spell["damage"])
