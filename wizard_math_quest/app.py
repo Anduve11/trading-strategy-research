@@ -180,14 +180,14 @@ div.stButton > button:disabled { color:#aaa8b7; background:#e7e6eb; border-color
 .st-key-island_map .map-art { inset:0; width:100%; height:var(--map-height)!important; min-height:var(--map-height)!important; background:url('/app/static/starwilds_map.webp') center/100% 100% no-repeat; }
 .st-key-island_map .map-art > :not(.map-castle) { display:none!important; }
 .map-castle { width:14%; height:24%; transform:translate(-50%,-50%); z-index:4; color:#fff; pointer-events:none; }
-.map-castle-0 { left:15%; top:47%; }.map-castle-1 { left:22%; top:23%; }.map-castle-2 { left:50%; top:60%; }.map-castle-3 { left:73%; top:18%; }.map-castle-4 { left:83%; top:48%; }
-.castle-number { left:50%; top:3%; transform:translateX(-50%); width:clamp(36px,4vw,50px); height:clamp(36px,4vw,50px); line-height:clamp(28px,3.3vw,42px); border:4px solid #fff; background:linear-gradient(145deg,#ffdc5e,#ff9f35); color:#382b67; box-shadow:0 4px 0 #59407b,0 0 0 4px #fff5; }
+.map-castle-0 { left:15%; top:56%; }.map-castle-1 { left:22%; top:18%; }.map-castle-2 { left:50%; top:57%; }.map-castle-3 { left:73%; top:16%; }.map-castle-4 { left:83%; top:48%; }
+.castle-number { left:50%; top:50%; transform:translate(-50%,-50%); width:clamp(36px,4vw,50px); height:clamp(36px,4vw,50px); line-height:clamp(28px,3.3vw,42px); border:4px solid #fff; background:linear-gradient(145deg,#ffdc5e,#ff9f35); color:#382b67; box-shadow:0 4px 0 #59407b,0 0 0 4px #fff5; }
 .castle-name { bottom:0; padding:.35rem .4rem; font-size:clamp(.58rem,1vw,.82rem); background:linear-gradient(135deg,#fff,#fff3ce); border:2px solid #fff; box-shadow:0 4px 9px #28234b66; white-space:nowrap; }
 .map-castle.locked { opacity:.82; filter:grayscale(.55) saturate(.72); }
 .map-castle.open { opacity:1; filter:drop-shadow(0 0 15px #fff45f); animation:castle-glow 1.5s ease-in-out infinite alternate; }
 .map-castle.done .castle-number { background:linear-gradient(145deg,#8cf5a9,#42c978); }
 .st-key-island_map [class*="st-key-castle_hit_"] { position:absolute!important; z-index:6; width:clamp(84px,16%,165px)!important; height:clamp(120px,24%,170px)!important; min-width:0!important; transform:translate(-50%,-50%)!important; }
-.st-key-island_map .st-key-castle_hit_0 { left:15%; top:47%; }.st-key-island_map .st-key-castle_hit_1 { left:22%; top:23%; }.st-key-island_map .st-key-castle_hit_2 { left:50%; top:60%; }.st-key-island_map .st-key-castle_hit_3 { left:73%; top:18%; }.st-key-island_map .st-key-castle_hit_4 { left:83%; top:48%; }
+.st-key-island_map .st-key-castle_hit_0 { left:15%; top:56%; }.st-key-island_map .st-key-castle_hit_1 { left:22%; top:18%; }.st-key-island_map .st-key-castle_hit_2 { left:50%; top:57%; }.st-key-island_map .st-key-castle_hit_3 { left:73%; top:16%; }.st-key-island_map .st-key-castle_hit_4 { left:83%; top:48%; }
 .st-key-island_map [class*="st-key-castle_hit_"] button { width:100%; height:100%; min-height:0!important; padding:0!important; color:transparent!important; font-size:0!important; border:2px solid transparent!important; border-radius:24px!important; background:transparent!important; box-shadow:none!important; }
 .st-key-island_map [class*="st-key-castle_hit_"] button:hover { border:3px solid #fff!important; background:#ffe15b22!important; box-shadow:0 0 30px 12px #ffe15b99!important; }
 .st-key-island_map [class*="st-key-castle_hit_"] button:disabled { opacity:0!important; pointer-events:none!important; }
