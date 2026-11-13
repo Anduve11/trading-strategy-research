@@ -866,8 +866,9 @@ def render_spell_choices() -> None:
               font-size:.84rem!important; font-weight:900!important; line-height:1.23!important;
               text-align:left!important; white-space:normal!important; overflow:visible!important;
             }}
-            .st-key-get_spell_{spell_id} button [data-testid="stMarkdownContainer"] {{ width:100%!important; text-align:left!important; }}
-            .st-key-get_spell_{spell_id} button p {{ margin:.18rem 0!important; text-align:left!important; }}
+            .st-key-get_spell_{spell_id} button * {{ white-space:normal!important; overflow:visible!important; text-overflow:clip!important; -webkit-line-clamp:unset!important; -webkit-box-orient:initial!important; }}
+            .st-key-get_spell_{spell_id} button [data-testid="stMarkdownContainer"] {{ display:block!important; flex:1 1 auto!important; width:100%!important; max-width:100%!important; text-align:left!important; }}
+            .st-key-get_spell_{spell_id} button p {{ margin:.18rem 0!important; text-align:left!important; white-space:normal!important; overflow:visible!important; text-overflow:clip!important; }}
             .st-key-get_spell_{spell_id} button:hover {{ transform:translateY(-3px) scale(1.015)!important; border-color:#fff!important; box-shadow:0 8px 0 #56417a33,0 0 0 5px {spell['color']}88,0 0 22px {spell['color']}99!important; }}
             @media(max-width:900px) {{ .st-key-get_spell_{spell_id} button {{ min-height:126px!important; padding:.62rem .52rem!important; font-size:.78rem!important; }} }}
             </style>""",
@@ -877,7 +878,7 @@ def render_spell_choices() -> None:
             f"**{spell['emoji']} {spell['name']}**  \n"
             f"{spell['description']}  \n"
             f"**🧠 {spell['questions']} correct answers · 💥 {spell['damage']} damage**  \n"
-            "**👇 TAP THIS CARD TO GET THE SPELL**"
+            "**👇 TAP TO GET THIS SPELL**"
         )
         if st.button(label, key=f"get_spell_{spell_id}", use_container_width=True):
             begin_spell_challenge(spell_id)
