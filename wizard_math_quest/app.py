@@ -220,9 +220,9 @@ div.stButton > button:disabled { color:#aaa8b7; background:#e7e6eb; border-color
 .st-key-battle_arena .character { width:34%; height:100%; }
 .st-key-battle_arena .player-character { margin-right:auto; }
 .st-key-battle_arena .boss { margin-left:auto; }
-.st-key-battle_arena .sprite { display:block; width:100%; height:90%; max-width:none; object-fit:contain; object-position:center bottom; filter:drop-shadow(0 10px 9px #17152a88); }
-.st-key-battle_arena .hero-sprite { background:url('/app/static/hero.webp') center bottom/auto 72% no-repeat; transform:scale(.52); transform-origin:center bottom; }
-.st-key-battle_arena .boss-sprite { background:url('/app/static/maldred.webp') center bottom/auto 72% no-repeat; transform-origin:center bottom; }
+.st-key-battle_arena .sprite { display:block; width:130%; height:90%; max-width:none; flex-shrink:0; object-fit:contain; object-position:center bottom; filter:drop-shadow(0 10px 9px #17152a88); }
+.st-key-battle_arena .hero-sprite { align-self:flex-start; background:url('/app/static/hero.webp') center bottom/contain no-repeat; transform:scale(.52); transform-origin:left bottom; }
+.st-key-battle_arena .boss-sprite { align-self:flex-end; background:url('/app/static/maldred.webp') center bottom/contain no-repeat; transform-origin:right bottom; }
 .st-key-battle_arena .boss-size-1 .boss-sprite { transform:scale(.52); }
 .st-key-battle_arena .boss-size-2 .boss-sprite { transform:scale(.72); }
 .st-key-battle_arena .boss-size-3 .boss-sprite { transform:scale(.94); }
@@ -230,19 +230,25 @@ div.stButton > button:disabled { color:#aaa8b7; background:#e7e6eb; border-color
 .st-key-battle_arena .boss-size-5 .boss-sprite { transform:scale(1.62); }
 .st-key-battle_arena .character.player-character { animation:hero-prowl 4s ease-in-out infinite; }
 .st-key-battle_arena .character.player-character.attacking { animation:hero-lunge .82s cubic-bezier(.2,.8,.3,1) 1; }
+.st-key-battle_arena .character.player-character.defeated { transform-origin:center bottom; animation:hero-disappear 2.4s cubic-bezier(.45,0,.9,.4) forwards; }
 .st-key-battle_arena .character.boss { animation:boss-prowl 4.6s ease-in-out infinite; }
 .st-key-battle_arena .character.boss.hurt .sprite { filter:drop-shadow(0 0 22px #ffe158) saturate(.7); animation:sprite-flinch .6s ease-in-out 1; }
 .st-key-battle_arena .character.boss.defeated { transform-origin:center bottom; animation:boss-disappear 2.4s cubic-bezier(.45,0,.9,.4) forwards; }
-.st-key-battle_arena .head-health { top:50%; width:100%; }
-.st-key-battle_arena .boss-size-1 .head-health { top:50%; }
-.st-key-battle_arena .boss-size-2 .head-health { top:37%; }
-.st-key-battle_arena .boss-size-3 .head-health { top:23%; }
-.st-key-battle_arena .boss-size-4 .head-health { top:5%; }
-.st-key-battle_arena .boss-size-5 .head-health { top:-21%; }
+.st-key-battle_arena .player-character .head-health { top:56%; width:100%; }
+.st-key-battle_arena .boss-size-1 .head-health { top:56%; }
+.st-key-battle_arena .boss-size-2 .head-health { top:46%; }
+.st-key-battle_arena .boss-size-3 .head-health { top:35%; }
+.st-key-battle_arena .boss-size-4 .head-health { top:20%; }
+.st-key-battle_arena .boss-size-5 .head-health { top:-1%; }
 .st-key-battle_arena .head-health b { font-size:clamp(.75rem,1.2vw,1rem); }
 .st-key-battle_arena .health-track { height:16px; box-shadow:0 2px 8px #171329a8; }
 .st-key-battle_arena .char-name { position:absolute; bottom:1%; font-size:clamp(.72rem,1.05vw,.95rem); box-shadow:0 4px 10px #19162d88; }
 .st-key-battle_arena .enemy-attack { position:absolute; z-index:4; left:76%; top:52%; width:clamp(30px,4.2vw,46px); aspect-ratio:1; border:2px solid #ffd5ff; border-radius:50%; background:radial-gradient(circle at 32% 28%,#fff 0 7%,#ffc2ff 10%,#e45cff 31%,#a22de9 62%,#55129b 100%); box-shadow:0 0 12px #f4a0ff,0 0 28px #d454ff,0 0 48px #9b35ee88; animation:enemy-bolt 3.8s linear infinite; }
+.st-key-battle_arena .enemy-attack-size-1 { top:76%; --bolt-drop:3vh; }
+.st-key-battle_arena .enemy-attack-size-2 { top:68%; --bolt-drop:10vh; }
+.st-key-battle_arena .enemy-attack-size-3 { top:59%; --bolt-drop:18vh; }
+.st-key-battle_arena .enemy-attack-size-4 { top:49%; --bolt-drop:27vh; }
+.st-key-battle_arena .enemy-attack-size-5 { top:39%; --bolt-drop:36vh; }
 .st-key-battle_arena .enemy-attack:before { content:''; position:absolute; left:-50%; top:28%; width:70%; height:42%; border-radius:50%; background:linear-gradient(90deg,transparent,#f78affaa,#ffdbff); filter:blur(4px); transform:rotate(-18deg); }
 .st-key-battle_arena .enemy-attack:after { content:'✦'; position:absolute; left:-18%; top:-24%; color:#fff; font-size:clamp(.75rem,1.2vw,1rem); text-shadow:0 0 8px #fff; }
 .st-key-battle_arena .spell-projectile { left:26%; top:46%; font-size:4rem; animation:projectile .72s cubic-bezier(.2,.85,.25,1) 1 forwards; }
@@ -253,10 +259,19 @@ div.stButton > button:disabled { color:#aaa8b7; background:#e7e6eb; border-color
 .battle-winner { position:absolute; z-index:15; top:32%; left:14%; right:14%; padding:1.1rem; border:4px solid #fff; border-radius:28px; color:#51376d; background:linear-gradient(135deg,#fff7b8f5,#ffda6cf5); box-shadow:0 10px 30px #29203d88,0 0 0 6px #ffe77366; text-align:center; animation:winner-pop .55s cubic-bezier(.2,.9,.3,1.2) both; }
 .battle-winner h2 { color:#62398f!important; margin:.1rem 0; font-size:clamp(1.45rem,3vw,2.25rem); }
 .battle-winner p { margin:.15rem 0 0; color:#593c70; font-size:clamp(.85rem,1.4vw,1.05rem); font-weight:900; }
+.battle-gameover { position:absolute; z-index:16; top:33%; left:15%; right:15%; padding:1.1rem; border:4px solid #fff; border-radius:28px; color:#563b67; background:linear-gradient(135deg,#f6e5ffef,#ffe0e9f5); box-shadow:0 10px 30px #29203d88,0 0 0 6px #f5b9ff66; text-align:center; animation:winner-pop .55s cubic-bezier(.2,.9,.3,1.2) both; }
+.battle-gameover h2 { color:#804d9a!important; margin:.1rem 0; font-size:clamp(1.45rem,3vw,2.25rem); }
+.battle-gameover p { margin:.15rem 0 0; color:#684c76; font-size:clamp(.85rem,1.4vw,1.05rem); font-weight:900; }
+.gameover-stage { position:relative; display:flex; align-items:flex-end; justify-content:center; min-height:300px; height:min(44vh,460px); overflow:hidden; border:5px solid white; border-radius:28px; background:linear-gradient(180deg,#201d3866,#23173566),url('/app/static/arena.webp') center/cover; box-shadow:0 12px 28px #34234b33; }
+.gameover-stage .gameover-hero { width:min(40vw,280px); height:86%; background:url('/app/static/hero.webp') center bottom/contain no-repeat; filter:drop-shadow(0 8px 10px #21132c99); transform-origin:center bottom; animation:hero-disappear 2.4s cubic-bezier(.45,0,.9,.4) forwards; }
+.challenge-gameover { position:relative; inset:auto; max-width:680px; margin:.8rem auto; }
+.st-key-game_over_home_challenge { max-width:420px; margin:auto; }
 .st-key-battle_arena .st-key-defeat_continue { position:absolute!important; z-index:18; width:min(64%,360px)!important; left:50%!important; bottom:10%!important; transform:translateX(-50%)!important; }
 .st-key-battle_arena .st-key-defeat_continue button { min-height:3.6rem!important; border:3px solid white!important; color:#523563!important; background:linear-gradient(120deg,#ffe45f,#ffac48)!important; box-shadow:0 5px 0 #b9683a,0 0 20px #ffe35c!important; font-size:1.05rem!important; }
+.st-key-battle_arena .st-key-game_over_home { position:absolute!important; z-index:18; width:min(64%,360px)!important; left:50%!important; bottom:10%!important; transform:translateX(-50%)!important; }
+.st-key-battle_arena .st-key-game_over_home button,.st-key-game_over_home_challenge button { min-height:3.6rem!important; border:3px solid white!important; color:#523563!important; background:linear-gradient(120deg,#f5d7ff,#ffc0d0)!important; box-shadow:0 5px 0 #98689c,0 0 20px #f6c3ff!important; font-size:1.05rem!important; }
 .st-key-battle_arena [class*="st-key-battle_spell_"] { position:absolute!important; z-index:8; width:clamp(62px,12%,100px)!important; transform:translate(-50%,-50%)!important; }
-.st-key-battle_arena .st-key-battle_spell_0 { left:49%; top:56%; }.st-key-battle_arena .st-key-battle_spell_1 { left:49%; top:68%; }.st-key-battle_arena .st-key-battle_spell_2 { left:49%; top:80%; }.st-key-battle_arena .st-key-battle_spell_3 { left:49%; top:92%; }
+.st-key-battle_arena .st-key-battle_spell_0 { left:26%; top:80%; }.st-key-battle_arena .st-key-battle_spell_1 { left:26%; top:69%; }.st-key-battle_arena .st-key-battle_spell_2 { left:26%; top:58%; }.st-key-battle_arena .st-key-battle_spell_3 { left:26%; top:47%; }
 .st-key-battle_arena [class*="st-key-battle_spell_"] button { width:100%; min-height:clamp(70px,9vh,82px)!important; padding:.35rem!important; border:3px solid #fff!important; border-radius:20px!important; color:#382a5f!important; background:linear-gradient(145deg,#fffbe4,#ffe18b)!important; box-shadow:0 5px 0 #a77745,0 0 18px #ffe669!important; font-size:clamp(.68rem,1.05vw,.9rem)!important; line-height:1.08!important; white-space:normal!important; animation:spell-ready 1.8s ease-in-out infinite; }
 .st-key-battle_arena [class*="st-key-battle_spell_"] button:hover { transform:translateY(-4px) scale(1.03)!important; }
 .st-key-battle_arena [class*="st-key-battle_spell_"] button:disabled { opacity:.7!important; }
@@ -288,10 +303,11 @@ div.stButton > button:disabled { color:#aaa8b7; background:#e7e6eb; border-color
 .challenge-answer-row button { min-height:4.4rem!important; font-size:1.7rem!important; border-color:#a995da!important; background:linear-gradient(145deg,#fff,#f1eaff)!important; }
 .st-key-challenge_answers button { min-height:4.2rem!important; font-size:1.6rem!important; border-color:#a995da!important; background:linear-gradient(145deg,#fff,#f1eaff)!important; }
 .hp-badge { color:#fff; }
-@keyframes enemy-bolt { 0%,12% { opacity:0; transform:translateX(0) scale(.6) rotate(0); } 22% {opacity:1;} 76% {opacity:1;transform:translateX(-1050%) scale(1.35) rotate(330deg);} 100% {opacity:0;transform:translateX(-1120%) scale(.6) rotate(420deg);} }
+@keyframes enemy-bolt { 0%,12% { opacity:0; transform:translate(0,0) scale(.6) rotate(0); } 22% {opacity:1;} 76% {opacity:1;transform:translate(-1050%,var(--bolt-drop,0px)) scale(1.35) rotate(330deg);} 100% {opacity:0;transform:translate(-1120%,calc(var(--bolt-drop,0px) + 3vh)) scale(.6) rotate(420deg);} }
 @keyframes hero-prowl { 0%,100% { transform:translate(0,0) rotate(0); } 24% {transform:translate(7px,-7px) rotate(1deg);} 53% {transform:translate(22px,0) rotate(-1deg);} 78% {transform:translate(5px,-11px) rotate(1deg);} }
 @keyframes boss-prowl { 0%,100% { transform:translate(0,0) rotate(0); } 26% {transform:translate(-8px,-6px) rotate(-1deg);} 58% {transform:translate(-24px,0) rotate(1deg);} 82% {transform:translate(-4px,-10px) rotate(-1deg);} }
 @keyframes boss-disappear { 0% {opacity:1;transform:scale(1) rotate(0);filter:brightness(1);} 35% {opacity:1;transform:scale(.82) rotate(8deg);filter:brightness(1.5);} 70% {opacity:.65;transform:scale(.38) rotate(-16deg);filter:brightness(2);} 100% {opacity:0;transform:scale(0) rotate(30deg);filter:brightness(3);} }
+@keyframes hero-disappear { 0% {opacity:1;transform:scale(1) rotate(0);} 30% {opacity:.92;transform:scale(.78) rotate(-7deg);} 70% {opacity:.45;transform:scale(.34) rotate(10deg);} 100% {opacity:0;transform:scale(0) rotate(22deg);} }
 @keyframes warning-pop { from {opacity:0;transform:translateY(-12px) scale(.94);} to {opacity:1;transform:translateY(0) scale(1);} }
 @keyframes winner-pop { from {opacity:0;transform:scale(.65) rotate(-3deg);} to {opacity:1;transform:scale(1) rotate(0);} }
 @keyframes new-spell-glow { from {filter:brightness(1);box-shadow:0 0 0 3px #ffc83d44,0 0 12px #ffca4c88;} to {filter:brightness(1.13);box-shadow:0 0 0 6px #ffe24c99,0 0 28px #ffe24ccc;} }
@@ -319,7 +335,10 @@ div.stButton > button:disabled { color:#aaa8b7; background:#e7e6eb; border-color
   .st-key-battle_arena .character { width:35%; }
   .st-key-battle_arena .duel { left:10%; right:10%; }
   .st-key-battle_arena [class*="st-key-battle_spell_"] { width:70px!important; }
-  .st-key-battle_arena .st-key-battle_spell_0 { left:49%;top:56%; }.st-key-battle_arena .st-key-battle_spell_1 { left:49%;top:68%; }.st-key-battle_arena .st-key-battle_spell_2 { left:49%;top:80%; }.st-key-battle_arena .st-key-battle_spell_3 { left:49%;top:92%; }
+  .st-key-battle_arena .st-key-battle_spell_0 { left:26%;top:80%; }.st-key-battle_arena .st-key-battle_spell_1 { left:26%;top:69%; }.st-key-battle_arena .st-key-battle_spell_2 { left:26%;top:58%; }.st-key-battle_arena .st-key-battle_spell_3 { left:26%;top:47%; }
+  .battle-gameover { left:5%; right:5%; top:31%; padding:.75rem; }
+  .gameover-stage { min-height:250px; height:38vh; }
+  .gameover-stage .gameover-hero { width:60vw; }
   .pressure-label { font-size:.8rem; }
   .pressure-hero,.pressure-boss { width:28%; }
   .battle-warning { top:7%; right:3%; width:56%; padding:.55rem .65rem; font-size:.8rem; }
@@ -350,7 +369,7 @@ def init_state() -> None:
         "challenge_questions": [], "challenge_index": 0, "challenge_attempt": 0,
         "challenge_started_at": 0.0, "challenge_elapsed": 0,
         "enemy_attack_start_at": 0.0, "enemy_attack_hits": 0,
-        "defeat_started_at": 0.0,
+        "defeat_started_at": 0.0, "hero_defeat_started_at": 0.0,
         "challenge_feedback": "", "challenge_notice": "", "map_notice": "",
         "new_spell_highlight": None, "last_spell": None, "last_damage": 0,
         "adventure_over": False,
@@ -409,7 +428,7 @@ def start_adventure(player: str, level: int) -> None:
         "challenge_questions": [], "challenge_index": 0, "challenge_attempt": 0,
         "challenge_started_at": 0.0, "challenge_elapsed": 0,
         "enemy_attack_start_at": 0.0, "enemy_attack_hits": 0,
-        "defeat_started_at": 0.0,
+        "defeat_started_at": 0.0, "hero_defeat_started_at": 0.0,
         "challenge_feedback": "", "challenge_notice": "", "map_notice": "",
         "new_spell_highlight": None, "last_spell": None, "last_damage": 0,
         "adventure_over": False,
@@ -430,6 +449,7 @@ def enter_castle(index: int) -> None:
     S["enemy_attack_start_at"] = now + ATTACK_INTRO_SECONDS
     S["enemy_attack_hits"] = 0
     S["defeat_started_at"] = 0.0
+    S["hero_defeat_started_at"] = 0.0
     S["last_spell"] = None
     S["last_damage"] = 0
     S["new_spell_highlight"] = None
@@ -476,7 +496,7 @@ def record_completed_adventure() -> None:
 def update_enemy_attacks() -> None:
     if S["screen"] not in ("battle", "spell_challenge"):
         return
-    if S["enemy_hp"] <= 0 or S.get("defeat_started_at"):
+    if S["enemy_hp"] <= 0 or S.get("defeat_started_at") or S.get("hero_defeat_started_at"):
         return
     elapsed = time.time() - S.get("enemy_attack_start_at", 0.0)
     if elapsed < ATTACK_HIT_OFFSET_SECONDS:
@@ -484,8 +504,11 @@ def update_enemy_attacks() -> None:
     hit_count = 1 + int((elapsed - ATTACK_HIT_OFFSET_SECONDS) // ATTACK_INTERVAL_SECONDS)
     missed_hits = hit_count - S.get("enemy_attack_hits", 0)
     if missed_hits > 0:
-        S["hero_hp"] = max(0, S["hero_hp"] - missed_hits)
+        previous_hp = S["hero_hp"]
+        S["hero_hp"] = max(0, previous_hp - missed_hits)
         S["enemy_attack_hits"] = hit_count
+        if previous_hp > 0 and S["hero_hp"] == 0:
+            S["hero_defeat_started_at"] = time.time()
 
 
 def begin_spell_challenge(spell_id: str) -> None:
@@ -738,6 +761,8 @@ def render_battle_scene() -> None:
     now = time.time()
     defeated = S["enemy_hp"] <= 0 and bool(S.get("defeat_started_at"))
     defeat_elapsed = now - S["defeat_started_at"] if defeated else 0
+    hero_defeated = S["hero_hp"] <= 0 and bool(S.get("hero_defeat_started_at"))
+    hero_defeat_elapsed = now - S["hero_defeat_started_at"] if hero_defeated else 0
     enemy_ratio = max(0, S["enemy_hp"]) / castle["hp"]
     hurt = S["enemy_hp"] < castle["hp"]
     effect = SPELLS.get(S.get("last_spell") or "")
@@ -745,29 +770,32 @@ def render_battle_scene() -> None:
     warning_html = ""
     if not defeated and now < S.get("enemy_attack_start_at", 0):
         warning_html = f"<div class='battle-warning'>⚠️ Hurry! Answer math questions!<span>{castle['boss']} is starting to attack us!</span></div>"
-    attack_html = "<div class='enemy-attack' aria-hidden='true'></div>" if not defeated and now >= S.get("enemy_attack_start_at", 0) else ""
+    attack_html = f"<div class='enemy-attack enemy-attack-size-{index + 1}' aria-hidden='true'></div>" if not defeated and not hero_defeated and now >= S.get("enemy_attack_start_at", 0) else ""
     winner_html = ""
-    if defeated and defeat_elapsed >= DEFEAT_ANIMATION_SECONDS:
+    gameover_html = ""
+    if hero_defeated and hero_defeat_elapsed >= DEFEAT_ANIMATION_SECONDS:
+        gameover_html = f"<div class='battle-gameover'><div style='font-size:2.4rem'>💔 ✨ 🏰</div><h2>Game Over</h2><p>Wizard {S['player']} ran out of hearts. Return home and try the adventure again!</p></div>"
+    elif defeated and defeat_elapsed >= DEFEAT_ANIMATION_SECONDS:
         next_text = "Maldred is defeated and the Starwilds are safe!" if S["adventure_over"] else f"Castle {S['unlocked_castle'] + 1} is open. Keep your math magic going!"
         winner_html = f"<div class='battle-winner'><div style='font-size:2.4rem'>🏆 ✨ 🎉</div><h2>Winner!</h2><p>{next_text}</p></div>"
     arena_markup = (
         f"<div class='battle-arena'>"
         f"<div class='arena-caption'>{castle['emoji']} {castle['place']} · {castle['subtitle']}</div>"
-        f"{warning_html}{attack_html}{winner_html}"
+        f"{warning_html}{attack_html}{winner_html}{gameover_html}"
         f"<div class='duel'>"
-        f"<div class='character player-character {'attacking' if hurt else ''}'><div class='head-health'><b>Wizard {S['player']} · {S['hero_hp']} HP</b><div class='health-track'><span class='health-fill' style='width:{S['hero_hp']}%'></span></div></div><div class='sprite hero-sprite' role='img' aria-label='Wizard {S['player']}'></div><div class='char-name'>Wizard {S['player']}</div></div>"
+        f"<div class='character player-character {'attacking' if hurt and not hero_defeated else ''} {'defeated' if hero_defeated else ''}' style='animation-delay:-{min(hero_defeat_elapsed, DEFEAT_ANIMATION_SECONDS):.2f}s'><div class='head-health'><b>Wizard {S['player']} · {S['hero_hp']} HP</b><div class='health-track'><span class='health-fill' style='width:{S['hero_hp']}%'></span></div></div><div class='sprite hero-sprite' role='img' aria-label='Wizard {S['player']}'></div><div class='char-name'>Wizard {S['player']}</div></div>"
         f"{effect_html}"
         f"<div class='character boss boss-size-{index + 1} {'hurt' if hurt else ''} {'defeated' if defeated else ''}'><div class='head-health'><b>{castle['boss']} · {S['enemy_hp']} HP</b><div class='health-track'><span class='health-fill' style='width:{enemy_ratio * 100:.1f}%'></span></div></div><div class='sprite boss-sprite' role='img' aria-label='{castle['boss']}'></div><div class='char-name'>{castle['boss']}</div></div>"
         f"</div></div>"
     )
     with st.container(key="battle_arena"):
         st.markdown(arena_markup, unsafe_allow_html=True)
-        if not defeated:
+        if not defeated and not hero_defeated:
             for inventory_index, spell_id in enumerate(S["spell_inventory"]):
                 spell = SPELLS[spell_id]
                 is_new = spell_id == S.get("new_spell_highlight")
-                position_x = 49 + (inventory_index // 4) * 12
-                position_y = 56 + (inventory_index % 4) * 12
+                position_x = 26 + (inventory_index // 4) * 12
+                position_y = 80 - (inventory_index % 4) * 11
                 if is_new:
                     st.markdown(f"<style>.st-key-battle_arena .st-key-battle_spell_{inventory_index} button{{border:4px solid #fff!important;background:linear-gradient(145deg,#fff9ad,#ffbe42)!important;box-shadow:0 0 0 5px #ffe24c99,0 0 28px 12px #ffe24ccc!important;animation:new-spell-glow .9s ease-in-out infinite alternate}}</style>", unsafe_allow_html=True)
                 st.markdown(f"<style>.st-key-battle_arena .st-key-battle_spell_{inventory_index}{{left:{position_x}%;top:{position_y}%}}</style>", unsafe_allow_html=True)
@@ -780,6 +808,10 @@ def render_battle_scene() -> None:
             if st.button(button_label, key="defeat_continue", use_container_width=True):
                 S["screen"] = "map" if not S["adventure_over"] else "leaderboard"
                 S["defeat_started_at"] = 0.0
+                st.rerun()
+        if hero_defeated and hero_defeat_elapsed >= DEFEAT_ANIMATION_SECONDS:
+            if st.button("🏠 Return to home", key="game_over_home", use_container_width=True):
+                start_adventure(S["player"], int(S["math_level"]))
                 st.rerun()
 
 
@@ -799,12 +831,15 @@ def render_spell_choices() -> None:
 def render_battle() -> None:
     castle = CASTLES[S["active_castle"]]
     is_defeated = S["enemy_hp"] <= 0 and bool(S.get("defeat_started_at"))
+    hero_defeated = S["hero_hp"] <= 0 and bool(S.get("hero_defeat_started_at"))
     title = f"{castle['boss']} is guarding {castle['subtitle']}!" if not is_defeated else f"{castle['boss']} has been defeated!"
     subtitle = "Earn a spell in the Store, then tap it beside your wizard to cast." if not is_defeated else "Watch the shadow wizard vanish, then head back to the island!"
     st.markdown(f"<div class='battle-heading'><div class='eyebrow'>WIZARD DUEL · CASTLE {S['active_castle'] + 1}</div><h1>{title}</h1><p>{subtitle}</p></div>", unsafe_allow_html=True)
     left, right = st.columns([.72, 2.85], gap="medium")
     with left:
-        if is_defeated:
+        if hero_defeated:
+            st.markdown("<div class='store-title'>💔 GAME OVER</div><div class='notice'>Your wizard ran out of hearts. Return home to try again.</div>", unsafe_allow_html=True)
+        elif is_defeated:
             st.markdown("<div class='store-title'>🏆 VICTORY!</div><div class='notice'>Great spell-casting! Your next castle is waiting on the island.</div>", unsafe_allow_html=True)
         else:
             render_spell_choices()
@@ -817,6 +852,18 @@ def render_spell_challenge() -> None:
     if S["screen"] != "spell_challenge":
         return
     update_enemy_attacks()
+    if S.get("hero_defeat_started_at"):
+        elapsed = time.time() - S["hero_defeat_started_at"]
+        st.markdown(
+            f"<div class='gameover-stage'><div class='gameover-hero' style='animation-delay:-{min(elapsed, DEFEAT_ANIMATION_SECONDS):.2f}s' role='img' aria-label='Wizard {S['player']} shrinking away'></div></div>",
+            unsafe_allow_html=True,
+        )
+        if elapsed >= DEFEAT_ANIMATION_SECONDS:
+            st.markdown(f"<div class='battle-gameover challenge-gameover'><div style='font-size:2.4rem'>💔 ✨ 🏰</div><h2>Game Over</h2><p>Wizard {S['player']} ran out of hearts. Return home and try the adventure again!</p></div>", unsafe_allow_html=True)
+            if st.button("🏠 Return to home", key="game_over_home_challenge", use_container_width=True):
+                start_adventure(S["player"], int(S["math_level"]))
+                st.rerun()
+        return
     spell_id = S["challenge_spell"]
     spell = SPELLS[spell_id]
     total = spell["questions"]
