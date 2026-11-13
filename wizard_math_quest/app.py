@@ -225,8 +225,8 @@ div.stButton > button:disabled { color:#aaa8b7; background:#e7e6eb; border-color
 .st-key-battle_arena .spell-impact { left:77%; top:48%; font-size:5rem; }
 .st-key-battle_arena .boss-hurt { top:26%; right:12%; font-size:2rem; }
 .st-key-battle_arena [class*="st-key-battle_spell_"] { position:absolute!important; z-index:8; width:clamp(62px,12%,100px)!important; transform:translate(-50%,-50%)!important; }
-.st-key-battle_arena .st-key-battle_spell_0 { left:49%; top:41%; }.st-key-battle_arena .st-key-battle_spell_1 { left:49%; top:54%; }.st-key-battle_arena .st-key-battle_spell_2 { left:49%; top:67%; }.st-key-battle_arena .st-key-battle_spell_3 { left:49%; top:80%; }
-.st-key-battle_arena [class*="st-key-battle_spell_"] button { width:100%; min-height:clamp(70px,12vh,104px)!important; padding:.35rem!important; border:3px solid #fff!important; border-radius:20px!important; color:#382a5f!important; background:linear-gradient(145deg,#fffbe4,#ffe18b)!important; box-shadow:0 5px 0 #a77745,0 0 18px #ffe669!important; font-size:clamp(.68rem,1.05vw,.9rem)!important; line-height:1.08!important; white-space:normal!important; animation:spell-ready 1.8s ease-in-out infinite; }
+.st-key-battle_arena .st-key-battle_spell_0 { left:49%; top:56%; }.st-key-battle_arena .st-key-battle_spell_1 { left:49%; top:68%; }.st-key-battle_arena .st-key-battle_spell_2 { left:49%; top:80%; }.st-key-battle_arena .st-key-battle_spell_3 { left:49%; top:92%; }
+.st-key-battle_arena [class*="st-key-battle_spell_"] button { width:100%; min-height:clamp(70px,9vh,82px)!important; padding:.35rem!important; border:3px solid #fff!important; border-radius:20px!important; color:#382a5f!important; background:linear-gradient(145deg,#fffbe4,#ffe18b)!important; box-shadow:0 5px 0 #a77745,0 0 18px #ffe669!important; font-size:clamp(.68rem,1.05vw,.9rem)!important; line-height:1.08!important; white-space:normal!important; animation:spell-ready 1.8s ease-in-out infinite; }
 .st-key-battle_arena [class*="st-key-battle_spell_"] button:hover { transform:translateY(-4px) scale(1.03)!important; }
 .st-key-battle_arena [class*="st-key-battle_spell_"] button:disabled { opacity:.7!important; }
 .spell-pick { min-height:unset; padding:.55rem .6rem; border-radius:16px; background:linear-gradient(145deg,#fff,#fff7df); box-shadow:0 4px 11px #49356013; }
@@ -281,7 +281,7 @@ div.stButton > button:disabled { color:#aaa8b7; background:#e7e6eb; border-color
   .st-key-battle_arena .character { width:43%; }
   .st-key-battle_arena .duel { left:0; right:0; }
   .st-key-battle_arena [class*="st-key-battle_spell_"] { width:70px!important; }
-  .st-key-battle_arena .st-key-battle_spell_0 { left:49%;top:41%; }.st-key-battle_arena .st-key-battle_spell_1 { left:49%;top:54%; }.st-key-battle_arena .st-key-battle_spell_2 { left:49%;top:67%; }.st-key-battle_arena .st-key-battle_spell_3 { left:49%;top:80%; }
+  .st-key-battle_arena .st-key-battle_spell_0 { left:49%;top:56%; }.st-key-battle_arena .st-key-battle_spell_1 { left:49%;top:68%; }.st-key-battle_arena .st-key-battle_spell_2 { left:49%;top:80%; }.st-key-battle_arena .st-key-battle_spell_3 { left:49%;top:92%; }
   .pressure-label { font-size:.8rem; }
   .pressure-hero,.pressure-boss { width:28%; }
 }
@@ -572,7 +572,7 @@ def render_battle_scene() -> None:
         for inventory_index, spell_id in enumerate(S["spell_inventory"]):
             spell = SPELLS[spell_id]
             position_x = 49 + (inventory_index // 4) * 12
-            position_y = 41 + (inventory_index % 4) * 13
+            position_y = 56 + (inventory_index % 4) * 12
             st.markdown(f"<style>.st-key-battle_arena .st-key-battle_spell_{inventory_index}{{left:{position_x}%;top:{position_y}%}}</style>", unsafe_allow_html=True)
             if st.button(f"{spell['emoji']}\n{spell['name']}\n{spell['damage']} dmg", key=f"battle_spell_{inventory_index}", help=f"Cast {spell['name']} for {spell['damage']} damage", use_container_width=True):
                 cast_spell(inventory_index)
