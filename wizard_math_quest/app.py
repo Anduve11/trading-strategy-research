@@ -128,6 +128,7 @@ div.stButton > button:disabled { color:#aaa8b7; background:#e7e6eb; border-color
 .battle-arena.sky { --sky1:#b7e9ff; --sky2:#82c9f2; --ground:#d5f4ff; background:radial-gradient(ellipse at 50% 55%,#fffcc877 0 14%,transparent 48%),linear-gradient(180deg,var(--sky1),var(--sky2) 60%,var(--ground) 60%,#78b4da); }
 .battle-arena.tower { --sky1:#393759; --sky2:#61528f; --ground:#393554; background:radial-gradient(ellipse at 50% 56%,#ec75c344 0 14%,transparent 48%),linear-gradient(180deg,var(--sky1),var(--sky2) 60%,var(--ground) 60%,#25243a); }
 .arena-backdrop {position:absolute;inset:12% 0 23%;z-index:1;pointer-events:none;}
+.arena-backdrop:before {content:'';position:absolute;left:-7%;right:-7%;bottom:-28%;height:65%;border-radius:55% 55% 0 0 / 78% 78% 0 0;background:linear-gradient(180deg,#ffffff22,#2b674433);}
 .arena-prop {position:absolute;font-size:clamp(2.5rem,7vw,5rem);filter:drop-shadow(0 5px 3px #30304455);opacity:.78;animation:prop-float 4s ease-in-out infinite;}
 .arena-prop.one {left:8%;bottom:3%;}.arena-prop.two {right:8%;bottom:8%;animation-delay:-2s;}
 .battle-arena.caves .arena-prop {filter:drop-shadow(0 0 18px #c39aff);}
@@ -135,8 +136,8 @@ div.stButton > button:disabled { color:#aaa8b7; background:#e7e6eb; border-color
 .battle-arena.caves .arena-prop,.battle-arena.tower .arena-prop {opacity:.52;}
 .duel { position:absolute; left:5%; right:5%; bottom:7%; height:74%; display:flex; align-items:flex-end; justify-content:space-between; z-index:2; }
 .character { width:36%; height:100%; position:relative; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; }
-.character.hero { animation:hero-bob 2.3s ease-in-out infinite; }
-.character.hero.attacking { animation:hero-lunge .82s cubic-bezier(.2,.8,.3,1) 1; }
+.character.player-character { animation:hero-bob 2.3s ease-in-out infinite; }
+.character.player-character.attacking { animation:hero-lunge .82s cubic-bezier(.2,.8,.3,1) 1; }
 .character.boss { animation:boss-bob 2.8s ease-in-out infinite; }
 .character.boss.hurt { animation:enemy-flinch .58s ease-in-out 1,boss-bob 2.8s ease-in-out infinite; filter:saturate(.68); }
 .sprite { width:min(100%,205px); height:78%; overflow:visible; filter:drop-shadow(0 9px 7px rgba(32,31,67,.2)); }
@@ -442,7 +443,7 @@ def render_battle_scene() -> None:
         f"<div class='arena-caption'>{castle['emoji']} {castle['place']} · {castle['subtitle']}</div>"
         f"<div class='arena-backdrop'><span class='arena-prop one'>{backdrop}</span><span class='arena-prop two'>{backdrop_alt}</span></div>"
         f"<div class='duel'>"
-        f"<div class='character hero {'attacking' if hurt else ''}'><div class='head-health'><b>{S['player']}</b><div class='health-track'><span class='health-fill' style='width:100%'></span></div></div>{hero_svg(hero_color)}<div class='char-name'>Wizard {S['player']}</div></div>"
+        f"<div class='character player-character {'attacking' if hurt else ''}'><div class='head-health'><b>{S['player']}</b><div class='health-track'><span class='health-fill' style='width:100%'></span></div></div>{hero_svg(hero_color)}<div class='char-name'>Wizard {S['player']}</div></div>"
         f"{effect_html}"
         f"<div class='character boss {'hurt' if hurt else ''}'><div class='head-health'><b>{castle['boss']}</b><div class='health-track'><span class='health-fill' style='width:{enemy_ratio * 100:.1f}%'></span></div></div>{boss_svg(index, hurt)}<div class='char-name'>{castle['boss']}</div></div>"
         f"</div></div>"
