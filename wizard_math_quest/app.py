@@ -217,12 +217,14 @@ div.stButton > button:disabled { color:#aaa8b7; background:#e7e6eb; border-color
 .st-key-battle_arena .head-health b { font-size:clamp(.75rem,1.2vw,1rem); }
 .st-key-battle_arena .health-track { height:16px; box-shadow:0 2px 8px #171329a8; }
 .st-key-battle_arena .char-name { position:absolute; bottom:1%; font-size:clamp(.72rem,1.05vw,.95rem); box-shadow:0 4px 10px #19162d88; }
-.st-key-battle_arena .enemy-attack { position:absolute; z-index:4; left:59%; top:51%; font-size:clamp(2rem,5vw,4.2rem); filter:drop-shadow(0 0 15px #d56bff); animation:enemy-bolt 2.3s ease-in-out infinite; }
+.st-key-battle_arena .enemy-attack { position:absolute; z-index:4; left:59%; top:51%; width:clamp(30px,4.2vw,46px); aspect-ratio:1; border:2px solid #ffd5ff; border-radius:50%; background:radial-gradient(circle at 32% 28%,#fff 0 7%,#ffc2ff 10%,#e45cff 31%,#a22de9 62%,#55129b 100%); box-shadow:0 0 12px #f4a0ff,0 0 28px #d454ff,0 0 48px #9b35ee88; animation:enemy-bolt 2.3s ease-in-out infinite; }
+.st-key-battle_arena .enemy-attack:before { content:''; position:absolute; left:-50%; top:28%; width:70%; height:42%; border-radius:50%; background:linear-gradient(90deg,transparent,#f78affaa,#ffdbff); filter:blur(4px); transform:rotate(-18deg); }
+.st-key-battle_arena .enemy-attack:after { content:'✦'; position:absolute; left:-18%; top:-24%; color:#fff; font-size:clamp(.75rem,1.2vw,1rem); text-shadow:0 0 8px #fff; }
 .st-key-battle_arena .spell-projectile { left:26%; top:46%; font-size:4rem; animation:projectile .72s cubic-bezier(.2,.85,.25,1) 1 forwards; }
 .st-key-battle_arena .spell-impact { left:77%; top:48%; font-size:5rem; }
 .st-key-battle_arena .boss-hurt { top:26%; right:12%; font-size:2rem; }
 .st-key-battle_arena [class*="st-key-battle_spell_"] { position:absolute!important; z-index:8; width:clamp(62px,12%,100px)!important; transform:translate(-50%,-50%)!important; }
-.st-key-battle_arena .st-key-battle_spell_0 { left:34%; top:70%; }.st-key-battle_arena .st-key-battle_spell_1 { left:47%; top:70%; }.st-key-battle_arena .st-key-battle_spell_2 { left:60%; top:70%; }.st-key-battle_arena .st-key-battle_spell_3 { left:73%; top:70%; }
+.st-key-battle_arena .st-key-battle_spell_0 { left:49%; top:41%; }.st-key-battle_arena .st-key-battle_spell_1 { left:49%; top:54%; }.st-key-battle_arena .st-key-battle_spell_2 { left:49%; top:67%; }.st-key-battle_arena .st-key-battle_spell_3 { left:49%; top:80%; }
 .st-key-battle_arena [class*="st-key-battle_spell_"] button { width:100%; min-height:clamp(70px,12vh,104px)!important; padding:.35rem!important; border:3px solid #fff!important; border-radius:20px!important; color:#382a5f!important; background:linear-gradient(145deg,#fffbe4,#ffe18b)!important; box-shadow:0 5px 0 #a77745,0 0 18px #ffe669!important; font-size:clamp(.68rem,1.05vw,.9rem)!important; line-height:1.08!important; white-space:normal!important; animation:spell-ready 1.8s ease-in-out infinite; }
 .st-key-battle_arena [class*="st-key-battle_spell_"] button:hover { transform:translateY(-4px) scale(1.03)!important; }
 .st-key-battle_arena [class*="st-key-battle_spell_"] button:disabled { opacity:.7!important; }
@@ -278,7 +280,7 @@ div.stButton > button:disabled { color:#aaa8b7; background:#e7e6eb; border-color
   .st-key-battle_arena .character { width:43%; }
   .st-key-battle_arena .duel { left:0; right:0; }
   .st-key-battle_arena [class*="st-key-battle_spell_"] { width:70px!important; }
-  .st-key-battle_arena .st-key-battle_spell_0 { left:32%; }.st-key-battle_arena .st-key-battle_spell_1 { left:46%; }.st-key-battle_arena .st-key-battle_spell_2 { left:60%; }.st-key-battle_arena .st-key-battle_spell_3 { left:74%; }
+  .st-key-battle_arena .st-key-battle_spell_0 { left:49%;top:41%; }.st-key-battle_arena .st-key-battle_spell_1 { left:49%;top:54%; }.st-key-battle_arena .st-key-battle_spell_2 { left:49%;top:67%; }.st-key-battle_arena .st-key-battle_spell_3 { left:49%;top:80%; }
   .pressure-label { font-size:.8rem; }
   .pressure-hero,.pressure-boss { width:28%; }
 }
@@ -557,7 +559,7 @@ def render_battle_scene() -> None:
     arena_markup = (
         f"<div class='battle-arena'>"
         f"<div class='arena-caption'>{castle['emoji']} {castle['place']} · {castle['subtitle']}</div>"
-        f"<div class='enemy-attack' aria-hidden='true'>🟣</div>"
+        f"<div class='enemy-attack' aria-hidden='true'></div>"
         f"<div class='duel'>"
         f"<div class='character player-character {'attacking' if hurt else ''}'><div class='head-health'><b>Wizard {S['player']} · {S['hero_hp']} HP</b><div class='health-track'><span class='health-fill' style='width:{S['hero_hp']}%'></span></div></div><div class='sprite hero-sprite' role='img' aria-label='Wizard {S['player']}'></div><div class='char-name'>Wizard {S['player']}</div></div>"
         f"{effect_html}"
@@ -568,8 +570,8 @@ def render_battle_scene() -> None:
         st.markdown(arena_markup, unsafe_allow_html=True)
         for inventory_index, spell_id in enumerate(S["spell_inventory"]):
             spell = SPELLS[spell_id]
-            position_x = 34 + (inventory_index % 4) * 13
-            position_y = 61 + (inventory_index // 4) * 13
+            position_x = 49 + (inventory_index // 4) * 12
+            position_y = 41 + (inventory_index % 4) * 13
             st.markdown(f"<style>.st-key-battle_arena .st-key-battle_spell_{inventory_index}{{left:{position_x}%;top:{position_y}%}}</style>", unsafe_allow_html=True)
             if st.button(f"{spell['emoji']}\n{spell['name']}\n{spell['damage']} dmg", key=f"battle_spell_{inventory_index}", help=f"Cast {spell['name']} for {spell['damage']} damage", use_container_width=True):
                 cast_spell(inventory_index)
