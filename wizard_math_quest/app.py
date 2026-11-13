@@ -188,7 +188,7 @@ div.stButton > button:disabled { color:#aaa8b7; background:#e7e6eb; border-color
 .map-castle.done .castle-number { background:linear-gradient(145deg,#8cf5a9,#42c978); }
 .st-key-island_map [class*="st-key-castle_hit_"] { position:absolute!important; z-index:6; width:clamp(84px,16%,165px)!important; height:clamp(120px,24%,170px)!important; min-width:0!important; transform:translate(-50%,-50%)!important; }
 .st-key-island_map .st-key-castle_hit_0 { left:15%; top:56%; }.st-key-island_map .st-key-castle_hit_1 { left:22%; top:18%; }.st-key-island_map .st-key-castle_hit_2 { left:50%; top:57%; }.st-key-island_map .st-key-castle_hit_3 { left:73%; top:16%; }.st-key-island_map .st-key-castle_hit_4 { left:83%; top:48%; }
-.st-key-island_map [class*="st-key-castle_hit_"] button { width:100%; height:100%; min-height:0!important; padding:0!important; color:transparent!important; font-size:0!important; border:2px solid transparent!important; border-radius:24px!important; background:transparent!important; box-shadow:none!important; }
+.st-key-island_map [class*="st-key-castle_hit_"] button { display:block!important; width:100%!important; height:100%!important; min-height:100%!important; padding:0!important; color:transparent!important; font-size:0!important; border:2px solid transparent!important; border-radius:24px!important; background:transparent!important; box-shadow:none!important; }
 .st-key-island_map [class*="st-key-castle_hit_"] button:hover { border:3px solid #fff!important; background:#ffe15b22!important; box-shadow:0 0 30px 12px #ffe15b99!important; }
 .st-key-island_map [class*="st-key-castle_hit_"] button:disabled { opacity:0!important; pointer-events:none!important; }
 .map-topbar { padding:.5rem .9rem; }
