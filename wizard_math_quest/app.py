@@ -174,7 +174,7 @@ div.stButton > button:disabled { color:#aaa8b7; background:#e7e6eb; border-color
 @media(max-width:700px) { .battle-arena { min-height:330px; } .duel { left:2%; right:2%; } .character { width:42%; } .sprite { width:100%; } .challenge-math { font-size:2.2rem; } }
 
 /* Rich, original game artwork and large tablet-friendly play areas. */
-.st-key-island_map { --map-height:min(70vh,760px); height:var(--map-height)!important; min-height:0!important; }
+.st-key-island_map { --map-height:min(70vh,760px); height:var(--map-height)!important; min-height:var(--map-height)!important; }
 .st-key-island_map .map-art { inset:0; width:100%; height:100%!important; background:url('/app/static/starwilds_map.webp') center/100% 100% no-repeat; }
 .st-key-island_map .map-art > :not(.map-castle) { display:none!important; }
 .map-castle { width:14%; height:24%; transform:translate(-50%,-50%); z-index:4; color:#fff; pointer-events:none; }
